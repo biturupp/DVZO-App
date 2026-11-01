@@ -6,6 +6,7 @@ import { tripArrivals, tripStops, tripTimes } from '../../domain/schedule';
 import { hm, parseHm } from '../../domain/time';
 import type { Direction, Line, ServiceCalendar, Trip } from '../../domain/types';
 import { toast } from '../../ui/toast';
+import { TimeInput } from '../../ui/TimeInput';
 import { CalendarPanel } from './CalendarPanel';
 
 /** Modul b: Fahrpläne (Kurse) pro Linie und Richtung, mit Fahrtag-Intervallen. */
@@ -147,12 +148,12 @@ function DirectionTable({ line, dir, trips, usedIds, calendars, lineNumbers }: {
                         {showArr && i > 0 && i < stops.length - 1 && (
                           <div className="ttcell">
                             <span>an</span>
-                            <input type="time" aria-label={`Ankunft ${s.name}`} defaultValue={hm(aa[i])} key={t.id + s.id + 'a' + aa[i]} onBlur={(e) => setArrival(t, s.id, tt[i], e.target.value)} />
+                            <TimeInput aria-label={`Ankunft ${s.name}`} value={hm(aa[i])} onCommit={(v) => setArrival(t, s.id, tt[i], v)} />
                           </div>
                         )}
                         <div className="ttcell">
                           {showArr && <span>{i === stops.length - 1 ? 'an' : 'ab'}</span>}
-                          <input type="time" aria-label={`Abfahrt ${s.name}`} defaultValue={hm(tt[i])} key={t.id + s.id + tt[i]} onBlur={(e) => setDeparture(t, i, e.target.value)} />
+                          <TimeInput aria-label={`Abfahrt ${s.name}`} value={hm(tt[i])} onCommit={(v) => setDeparture(t, i, v)} />
                         </div>
                       </td>
                     ))}

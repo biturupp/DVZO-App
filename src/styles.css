@@ -59,7 +59,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
 td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-td input[type=time]{width:6.6em;padding:5px}
+td input[type=time],td input.time24{width:4.6em;padding:5px}
 td input[type=text]{width:100%}
 /* Driving view */
 .status{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
@@ -140,3 +140,24 @@ label.check{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:6
 .w-kurs{width:4em}
 table.tt select{max-width:12em}
 tr.fresh td{background:color-mix(in srgb,var(--signal) 18%,transparent)}
+input.time24{font-family:var(--f-mono);font-variant-numeric:tabular-nums;width:5.2em;text-align:center}
+input.time24.invalid{border-color:var(--late);outline:2px solid var(--late)}
+.dateinput{position:relative;display:flex;gap:4px;align-items:center}
+input.date24{font-family:var(--f-mono);width:7.6em;text-align:center}
+input.date24.invalid{border-color:var(--late);outline:2px solid var(--late)}
+.calbtn{padding:6px 8px;line-height:0}
+.calpop{position:absolute;top:calc(100% + 4px);left:0;z-index:1000;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px;width:268px}
+.calhead{display:flex;align-items:center;gap:2px;margin-bottom:6px}
+.calhead b{flex:1;text-align:center}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.calwd{font-size:.75em;text-align:center;color:var(--muted);padding:2px 0}
+.calday{border:0;background:none;border-radius:6px;padding:7px 0;font:inherit;cursor:pointer;color:inherit}
+.calday:hover{background:var(--surface2)}
+.calday.we{color:var(--muted)}
+.calday.today{outline:1px solid var(--line)}
+.calday.sel{background:var(--accent);color:var(--accent-ink)}
+.preview-list{margin-top:8px;max-height:340px;overflow-y:auto;display:grid;gap:4px}
+.preview-month{display:grid;grid-template-columns:9.5em 3em 1fr;gap:6px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--line)}
+.preview-month:last-child{border-bottom:0}
+.preview-month .days{white-space:pre-wrap;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.preview-month{grid-template-columns:1fr auto}.preview-month .days{grid-column:1/-1}}
