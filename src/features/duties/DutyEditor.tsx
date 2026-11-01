@@ -1,0 +1,218 @@
+import { useState } from 'react';
+import { db, uid } from '../../data/db';
+import { today, useDutiesOn, useLines, useTrips, useUsers, useVehicles } from '../../data/hooks';
+import { overlappingItems, resolveItems, tripLabel, tripTimes } from '../../domain/schedule';
+import { hm } from '../../domain/time';
+import { DUTY_TYPES, type Duty, type DutyItem, type DutyType } from '../../domain/types';
+import { ensureSeeded } from '../../data/seed';
+import { toast } from '../../ui/toast';
+
+const DEFAULT_MIN: Record<DutyType, number> = { anfahrt: 20, fahrt: 0, pause: 30, wechsel: 20, tanken: 15, putzen: 20, rueckfahrt: 20 };
+
+/** Modul c: Dienstpläne (Fahrer, Fahrzeug, Tätigkeiten) sowie Fahrer- und Fahrzeugstamm. */
+export function DutyEditor() {
+  const [date, setDate] = useState(today());
+  const [editId, setEditId] = useState<string | null>(null);
+  const duties = useDutiesOn(date);
+  const users = useUsers();
+  const vehicles = useVehicles();
+  const lines = useLines();
+  const trips = useTrips();
+  const [resetArm, setResetArm] = useState(false);
+  const duty = duties.find((d) => d.id === editId) ?? null;
+
+  const save = (d: Duty) => db.duties.put({ ...d, sample: false });
+  const addDuty = async () => {
+    const id = uid('d');
+    await db.duties.add({ id, date, driverId: users.find((u) => u.role === 'fahrer')?.id ?? '', vehicleId: vehicles[0]?.id ?? '', items: [] });
+    setEditId(id);
+  };
+
+  return (
+    <div className="stack">
+      <section className="panel stack">
+        <div className="row spread">
+          <h2 className="sec m0">Dienste</h2>
+          <div className="row">
+            <label className="f">Datum<input type="date" value={date} onChange={(e) => { setDate(e.target.value); setEditId(null); }} /></label>
+            <button className="btn pri" onClick={addDuty}>+ Dienst</button>
+          </div>
+        </div>
+        {duties.length ? (
+          <div className="tbl">
+            <table>
+              <thead><tr><th>Fahrer/in</th><th>Fahrzeug</th><th>Zeit</th><th className="num">Fahrten</th><th /></tr></thead>
+              <tbody>
+                {duties.map((d) => {
+                  const its = resolveItems(d, trips, lines);
+                  return (
+                    <tr key={d.id}>
+                      <td>{users.find((u) => u.id === d.driverId)?.name}</td>
+                      <td>{vehicles.find((v) => v.id === d.vehicleId)?.name}</td>
+                      <td className="mono">{its.length ? `${hm(its[0].s)}–${hm(its[its.length - 1].e)}` : '–'}</td>
+                      <td className="num">{its.filter((i) => i.type === 'fahrt').length}</td>
+                      <td><button className={`btn sm${d.id === editId ? ' pri' : ''}`} onClick={() => setEditId(d.id)}>Bearbeiten</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="empty">An diesem Tag sind keine Dienste geplant.</p>}
+      </section>
+
+      {duty && <DutyForm duty={duty} onSave={save} onClose={() => setEditId(null)} />}
+
+      <div className="grid2">
+        <MasterData />
+        <section className="panel stack">
+          <h2 className="sec m0">Daten auf diesem Gerät</h2>
+          <p className="note">Bis der Server angebunden ist, liegen alle Daten nur auf diesem Gerät.</p>
+          <button
+            className={`btn${resetArm ? ' danger' : ''}`}
+            onClick={async () => {
+              if (!resetArm) { setResetArm(true); setTimeout(() => setResetArm(false), 5000); return; }
+              await ensureSeeded(db, true);
+              setResetArm(false);
+              setEditId(null);
+              toast('Beispieldaten wiederhergestellt');
+            }}
+          >
+            {resetArm ? 'Wirklich alles zurücksetzen?' : 'Beispieldaten wiederherstellen'}
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => void; onClose: () => void }) {
+  const users = useUsers();
+  const vehicles = useVehicles();
+  const lines = useLines();
+  const trips = useTrips();
+  const its = resolveItems(duty, trips, lines);
+  const bad = overlappingItems(its);
+  const setItem = (id: string, patch: Partial<DutyItem>) => onSave({ ...duty, items: duty.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  const addItem = (type: DutyType) => {
+    const lastE = its.length ? its[its.length - 1].e : 420;
+    if (type === 'fahrt') {
+      const nx = trips.map((t) => ({ t, s: tripTimes(t, lines.find((l) => l.id === t.lineId))[0] })).filter((x) => x.s >= lastE).sort((a, b) => a.s - b.s)[0];
+      onSave({ ...duty, items: [...duty.items, { id: uid('i'), type, start: null, end: null, note: '', tripId: nx?.t.id ?? null }] });
+    } else {
+      onSave({ ...duty, items: [...duty.items, { id: uid('i'), type, start: hm(lastE + 5), end: hm(lastE + 5 + DEFAULT_MIN[type]), note: '', tripId: null }] });
+    }
+  };
+  const tripOptions = lines.map((l) => (
+    <optgroup key={l.id} label={l.name}>
+      {trips.filter((t) => t.lineId === l.id).sort((a, b) => (a.dir === b.dir ? tripTimes(a, l)[0] - tripTimes(b, l)[0] : a.dir < b.dir ? -1 : 1)).map((t) => (
+        <option key={t.id} value={t.id}>{tripLabel(t, l)}</option>
+      ))}
+    </optgroup>
+  ));
+
+  return (
+    <section className="panel stack">
+      <div className="row spread"><h2 className="sec m0">Dienst bearbeiten</h2><button className="btn sm" onClick={onClose}>Schliessen</button></div>
+      <div className="row">
+        <label className="f">Datum<input type="date" value={duty.date} onChange={(e) => onSave({ ...duty, date: e.target.value })} /></label>
+        <label className="f">Fahrer/in
+          <select value={duty.driverId} onChange={(e) => onSave({ ...duty, driverId: e.target.value })}>
+            {users.filter((u) => u.role === 'fahrer').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </label>
+        <label className="f">Fahrzeug
+          <select value={duty.vehicleId} onChange={(e) => onSave({ ...duty, vehicleId: e.target.value })}>
+            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="tbl">
+        <table>
+          <thead><tr><th>Tätigkeit</th><th>Von</th><th>Bis</th><th>Kurs / Notiz</th><th /></tr></thead>
+          <tbody>
+            {its.map((i) => (
+              <tr key={i.id}>
+                <td>
+                  <select value={i.type} onChange={(e) => setItem(i.id, { type: e.target.value as DutyType, ...(e.target.value !== 'fahrt' && !i.start ? { start: hm(i.s), end: hm(i.s + 30) } : {}) })}>
+                    {Object.entries(DUTY_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                  {bad.has(i.id) && <div className="warn-t">überschneidet sich</div>}
+                </td>
+                {i.type === 'fahrt' ? (
+                  <>
+                    <td className="mono">{hm(i.s)}</td>
+                    <td className="mono">{hm(i.e)}</td>
+                    <td>
+                      <select value={i.tripId ?? ''} onChange={(e) => setItem(i.id, { tripId: e.target.value || null })}>
+                        <option value="">Kurs wählen …</option>{tripOptions}
+                      </select>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td><input type="time" defaultValue={i.start ?? ''} key={i.id + i.start} onBlur={(e) => setItem(i.id, { start: e.target.value || null })} /></td>
+                    <td><input type="time" defaultValue={i.end ?? ''} key={i.id + i.end} onBlur={(e) => setItem(i.id, { end: e.target.value || null })} /></td>
+                    <td><input type="text" defaultValue={i.note} onBlur={(e) => setItem(i.id, { note: e.target.value })} placeholder="z. B. Ort" /></td>
+                  </>
+                )}
+                <td><button className="btn sm" onClick={() => onSave({ ...duty, items: duty.items.filter((x) => x.id !== i.id) })} aria-label="Tätigkeit löschen">✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="row">
+        <button className="btn pri" onClick={() => addItem('fahrt')}>+ Linienfahrt</button>
+        {(['pause', 'anfahrt', 'wechsel', 'tanken', 'putzen', 'rueckfahrt'] as DutyType[]).map((t) => (
+          <button key={t} className="btn" onClick={() => addItem(t)}>+ {DUTY_TYPES[t]}</button>
+        ))}
+      </div>
+      <button className="btn sm danger" style={{ justifySelf: 'start' }} onClick={async () => { await db.duties.delete(duty.id); onClose(); }}>Dienst löschen</button>
+    </section>
+  );
+}
+
+
+function MasterData() {
+  const users = useUsers();
+  const vehicles = useVehicles();
+  const [nu, setNu] = useState({ name: '', pin: '' });
+  const [nv, setNv] = useState({ name: '', seats: '' });
+  return (
+    <section className="panel stack">
+      <h2 className="sec m0">Fahrer/innen und Fahrzeuge</h2>
+      <div className="tbl">
+        <table>
+          <thead><tr><th>Name</th><th>Rolle</th><th>PIN</th></tr></thead>
+          <tbody>{users.map((u) => <tr key={u.id}><td>{u.name}</td><td>{u.role === 'admin' ? 'Disposition' : 'Fahrer/in'}</td><td className="mono">{u.pin}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="row">
+        <label className="f grow1">Name<input type="text" value={nu.name} onChange={(e) => setNu({ ...nu, name: e.target.value })} /></label>
+        <label className="f">PIN<input type="text" inputMode="numeric" className="w-num" value={nu.pin} onChange={(e) => setNu({ ...nu, pin: e.target.value })} /></label>
+        <button className="btn" onClick={async () => {
+          if (!nu.name.trim() || !/^\d{4}$/.test(nu.pin)) return toast('Name und 4-stellige PIN eingeben');
+          await db.users.add({ id: uid('u'), name: nu.name.trim(), role: 'fahrer', pin: nu.pin });
+          toast(`${nu.name.trim()} hinzugefügt`);
+          setNu({ name: '', pin: '' });
+        }}>Hinzufügen</button>
+      </div>
+      <div className="tbl">
+        <table>
+          <thead><tr><th>Fahrzeug</th><th className="num">Plätze</th></tr></thead>
+          <tbody>{vehicles.map((v) => <tr key={v.id}><td>{v.name}</td><td className="num">{v.seats ?? '–'}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="row">
+        <label className="f grow1">Bezeichnung<input type="text" value={nv.name} onChange={(e) => setNv({ ...nv, name: e.target.value })} /></label>
+        <label className="f">Plätze<input type="number" className="w-num" value={nv.seats} onChange={(e) => setNv({ ...nv, seats: e.target.value })} /></label>
+        <button className="btn" onClick={async () => {
+          if (!nv.name.trim()) return toast('Bezeichnung eingeben');
+          await db.vehicles.add({ id: uid('v'), name: nv.name.trim(), seats: Number(nv.seats) || undefined });
+          setNv({ name: '', seats: '' });
+        }}>Hinzufügen</button>
+      </div>
+    </section>
+  );
+}
