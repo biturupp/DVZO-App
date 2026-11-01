@@ -133,3 +133,10 @@ html,body{margin:0}
 .ttcell+.ttcell{margin-top:4px}
 .ttcell span{font-size:11px;color:var(--muted);width:1.6em}
 label.check{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
+.inset{background:var(--surface2);border-color:var(--line)}
+.flabel{font-size:13px;color:var(--muted);font-weight:600}
+.btn.day{min-width:2.8em}
+.preview{padding:10px 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.w-kurs{width:4em}
+table.tt select{max-width:12em}
+tr.fresh td{background:color-mix(in srgb,var(--signal) 18%,transparent)}

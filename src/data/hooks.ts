@@ -11,3 +11,4 @@ export const useDutiesOn = (date: string) => useLiveQuery(() => db.duties.where(
 export const useCountsOn = (date: string) => useLiveQuery(() => db.counts.where('date').equals(date).toArray(), [date], []);
 export const today = () => isoDate(new Date());
 export const useDutiesAll = () => useLiveQuery(() => db.duties.toArray(), [], []);
+export const useCalendars = () => useLiveQuery(() => db.calendars.toArray(), [], []);

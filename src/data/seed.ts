@@ -29,11 +29,13 @@ export function buildSampleData(today = new Date()) {
   const trips: Trip[] = [];
   const mk = (L: Line, dir: 'H' | 'R', starts: number[], offs: number[]) => {
     const st = dir === 'H' ? L.stops : [...L.stops].reverse();
-    for (const s of starts) {
+    starts.forEach((s, n) => {
       const times: Record<string, number> = {};
       st.forEach((x, i) => (times[x.id] = s + offs[i]));
-      trips.push({ id: `${L.id}-${dir}-${hm(s).replace(':', '')}`, lineId: L.id, dir, times });
-    }
+      // Kursnummern: Hinrichtung ungerade, Rückrichtung gerade
+      const number = String(dir === 'H' ? 2 * n + 1 : 2 * n + 2);
+      trips.push({ id: `${L.id}-${dir}-${hm(s).replace(':', '')}`, lineId: L.id, dir, times, number, calendarId: null });
+    });
   };
   mk(L1, 'H', [425, 545, 785, 905, 1025], [0, 7, 19, 27]);
   mk(L1, 'R', [460, 580, 820, 940, 1060], [0, 8, 20, 27]);

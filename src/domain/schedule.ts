@@ -31,7 +31,7 @@ export function tripArrivals(trip: Trip, line: Line | undefined): number[] {
 export function tripLabel(trip: Trip, line: Line | undefined): string {
   const stops = tripStops(trip, line);
   const t = tripTimes(trip, line);
-  return `${line?.name ?? '?'} ${hm(t[0])} → ${stops.at(-1)?.name ?? ''}`;
+  return `${trip.number ? `Kurs ${trip.number} · ` : ''}${line?.name ?? '?'} ${hm(t[0])} → ${stops.at(-1)?.name ?? ''}`;
 }
 
 export interface ResolvedItem extends DutyItem {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { db, uid } from '../../data/db';
-import { today, useDutiesOn, useLines, useTrips, useUsers, useVehicles } from '../../data/hooks';
+import { today, useCalendars, useDutiesOn, useLines, useTrips, useUsers, useVehicles } from '../../data/hooks';
+import { holidayName, runsOn } from '../../domain/calendar';
 import { overlappingItems, resolveItems, tripLabel, tripTimes } from '../../domain/schedule';
 import { hm } from '../../domain/time';
 import { DUTY_TYPES, type Duty, type DutyItem, type DutyType } from '../../domain/types';
@@ -66,10 +67,11 @@ export function DutyEditor() {
 
       <div className="grid2">
         <MasterData />
-        {!serverMode && <section className="panel stack">
+        {!serverMode && <section className="panel stack" style={{ alignContent: 'start' }}>
           <h2 className="sec m0">Daten auf diesem Gerät</h2>
           <p className="note">Bis der Server angebunden ist, liegen alle Daten nur auf diesem Gerät.</p>
           <button
+            style={{ justifySelf: 'start' }}
             className={`btn${resetArm ? ' danger' : ''}`}
             onClick={async () => {
               if (!resetArm) { setResetArm(true); setTimeout(() => setResetArm(false), 5000); return; }
@@ -91,8 +93,12 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
   const users = useUsers();
   const vehicles = useVehicles();
   const lines = useLines();
-  const trips = useTrips();
-  const its = resolveItems(duty, trips, lines);
+  const allTrips = useTrips();
+  const calendars = useCalendars();
+  const runs = (t: { calendarId?: string | null }) => runsOn(calendars.find((c) => c.id === t.calendarId), duty.date);
+  const trips = allTrips.filter(runs);
+  const its = resolveItems(duty, allTrips, lines);
+  const hol = holidayName(duty.date);
   const bad = overlappingItems(its);
   const setItem = (id: string, patch: Partial<DutyItem>) => onSave({ ...duty, items: duty.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
   const addItem = (type: DutyType) => {
@@ -106,15 +112,17 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
   };
   const tripOptions = lines.map((l) => (
     <optgroup key={l.id} label={l.name}>
-      {trips.filter((t) => t.lineId === l.id).sort((a, b) => (a.dir === b.dir ? tripTimes(a, l)[0] - tripTimes(b, l)[0] : a.dir < b.dir ? -1 : 1)).map((t) => (
-        <option key={t.id} value={t.id}>{tripLabel(t, l)}</option>
+      {allTrips.filter((t) => t.lineId === l.id).sort((a, b) => (a.dir === b.dir ? tripTimes(a, l)[0] - tripTimes(b, l)[0] : a.dir < b.dir ? -1 : 1)).map((t) => (
+        <option key={t.id} value={t.id} disabled={!runs(t)}>{tripLabel(t, l)}{runs(t) ? '' : ' (verkehrt an diesem Tag nicht)'}</option>
       ))}
     </optgroup>
   ));
 
+
   return (
     <section className="panel stack">
       <div className="row spread"><h2 className="sec m0">Dienst bearbeiten</h2><button className="btn sm" onClick={onClose}>Schliessen</button></div>
+      {hol && <p className="note">Dieser Tag ist ein Feiertag ({hol}).</p>}
       <div className="row">
         <label className="f">Datum<input type="date" value={duty.date} onChange={(e) => onSave({ ...duty, date: e.target.value })} /></label>
         <label className="f">Fahrer/in
@@ -139,6 +147,7 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
                     {Object.entries(DUTY_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                   </select>
                   {bad.has(i.id) && <div className="warn-t">überschneidet sich</div>}
+                  {i.trip && !runs(i.trip) && <div className="warn-t">Kurs verkehrt an diesem Tag nicht</div>}
                 </td>
                 {i.type === 'fahrt' ? (
                   <>
