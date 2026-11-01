@@ -1,4 +1,4 @@
-import type { CountRecord, Duty, Line, ServiceCalendar, Trip, User, Vehicle } from '../domain/types';
+import type { CountRecord, Duty, Line, Role, ServiceCalendar, Trip, User, Vehicle } from '../domain/types';
 import type { SyncTable } from './db';
 
 /** Umrechnung zwischen App-Datensätzen (camelCase) und Server-Zeilen (snake_case). */
@@ -44,4 +44,4 @@ export const fromRow: Record<SyncTable, (r: any) => unknown> = {
   }),
 };
 
-export const profileToUser = (r: { id: string; name: string; role: 'admin' | 'fahrer' }): User => ({ id: r.id, name: r.name, role: r.role, pin: '' });
+export const profileToUser = (r: { id: string; name: string; role: Role; active?: boolean }): User => ({ id: r.id, name: r.name, role: r.role, pin: '', active: r.active ?? true });

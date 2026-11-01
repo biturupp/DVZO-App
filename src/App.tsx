@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from './ui/toast';
 import { useAuth } from './auth/AuthContext';
 import { useUsers } from './data/hooks';
 import { DriveView } from './features/drive/DriveView';
@@ -7,13 +8,17 @@ import { DutyEditor } from './features/duties/DutyEditor';
 import { LinesEditor } from './features/lines/LinesEditor';
 import { Reports } from './features/reports/Reports';
 import { TimetableEditor } from './features/timetable/TimetableEditor';
+import { AdminView } from './features/admin/AdminView';
+import { MessagePopup } from './features/admin/MessagePopup';
+import { canDispose, isAdmin, ROLE_LABELS, type User } from './domain/types';
 import { hm } from './domain/time';
 import { serverMode } from './data/supabase';
 import { onSyncStatus, syncNow, type SyncStatus } from './data/sync';
 
-type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'dienst' | 'auswertung';
+type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'dienst' | 'auswertung' | 'admin';
 
-const ADMIN_TABS: [Tab, string][] = [['fahrt', 'Fahrt'], ['linien', 'Linien'], ['fahrplan', 'Fahrpläne'], ['dienst', 'Dienstplan'], ['auswertung', 'Auswertung']];
+const DISPO_TABS: [Tab, string][] = [['fahrt', 'Fahrt'], ['linien', 'Linien'], ['fahrplan', 'Fahrpläne'], ['dienst', 'Dienstplan'], ['auswertung', 'Auswertung']];
+const ADMIN_TABS: [Tab, string][] = [...DISPO_TABS, ['admin', 'Administration']];
 const DRIVER_TABS: [Tab, string][] = [['fahrt', 'Mein Dienst'], ['auswertung', 'Meine Zählungen']];
 
 function useHashTab(allowed: Tab[]): [Tab, (t: Tab) => void] {
@@ -31,13 +36,14 @@ export function App() {
   const { user, logout, mustSetPassword } = useAuth();
   if (serverMode && mustSetPassword) return <SetPassword />;
   if (!user) return serverMode ? <EmailLogin /> : <Login />;
-  const tabs = user.role === 'admin' ? ADMIN_TABS : DRIVER_TABS;
-  return <Shell tabs={tabs} userName={user.name} onLogout={logout} />;
+  const tabs = isAdmin(user) ? ADMIN_TABS : canDispose(user) ? DISPO_TABS : DRIVER_TABS;
+  return <Shell tabs={tabs} user={user} onLogout={logout} />;
 }
 
-function Shell({ tabs, userName, onLogout }: { tabs: [Tab, string][]; userName: string; onLogout: () => void }) {
+function Shell({ tabs, user, onLogout }: { tabs: [Tab, string][]; user: User; onLogout: () => void }) {
   const [tab, setTab] = useHashTab(tabs.map((t) => t[0]));
   const sim = useSim();
+  const [account, setAccount] = useState(false);
   return (
     <>
       <header className="top">
@@ -47,11 +53,11 @@ function Shell({ tabs, userName, onLogout }: { tabs: [Tab, string][]; userName: 
             <span className="clock">{hm(sim.now)}</span>
             {sim.clock.sim && <span className="chip sim">Simulation {sim.clock.speed ? `${sim.clock.speed}×` : 'pausiert'}</span>}
             {serverMode && <SyncChip />}
-            <span className="chip">{userName}</span>
+            <button className="chip chipbtn" onClick={() => setAccount(true)} title="Konto und Passwort">{user.name}</button>
             <button className="btn sm ghost" onClick={onLogout}>Abmelden</button>
           </div>
           <nav className="tabs" aria-label="Bereiche">
-            {tabs.map(([k, l]) => <button key={k} aria-current={k === tab ? 'page' : undefined} onClick={() => setTab(k)}>{l}</button>)}
+            {tabs.map(([k, l]) => <button key={k} className={k === 'admin' ? 'right' : undefined} aria-current={k === tab ? 'page' : undefined} onClick={() => setTab(k)}>{l}</button>)}
           </nav>
         </div>
       </header>
@@ -61,7 +67,10 @@ function Shell({ tabs, userName, onLogout }: { tabs: [Tab, string][]; userName: 
         {tab === 'fahrplan' && <TimetableEditor />}
         {tab === 'dienst' && <DutyEditor />}
         {tab === 'auswertung' && <Reports />}
+        {tab === 'admin' && <AdminView />}
       </main>
+      {serverMode && <MessagePopup userId={user.id} />}
+      {account && <AccountDialog user={user} onClose={() => setAccount(false)} />}
     </>
   );
 }
@@ -72,7 +81,7 @@ function Login() {
   const [sel, setSel] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [err, setErr] = useState('');
-  const chosen = sel ?? users.find((u) => u.role === 'fahrer')?.id ?? users[0]?.id;
+  const chosen = sel ?? users.find((u) => u.role === 'fahrer' && u.active !== false)?.id ?? users[0]?.id;
   const submit = async () => {
     if (!chosen) return;
     if (!(await login(chosen, pin))) { setErr('PIN stimmt nicht. Bitte erneut eingeben.'); setPin(''); }
@@ -87,9 +96,9 @@ function Login() {
         <form className="panel stack" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <h2 className="sec m0">Anmelden</h2>
           <div className="users">
-            {users.map((u) => (
+            {users.filter((u) => u.active !== false).map((u) => (
               <button type="button" key={u.id} className="ucard" aria-pressed={u.id === chosen} onClick={() => setSel(u.id)}>
-                <b>{u.name}</b><span>{u.role === 'admin' ? 'Disposition (alle Module)' : 'Fahrer/in'}</span>
+                <b>{u.name}</b><span>{ROLE_LABELS[u.role]}</span>
               </button>
             ))}
           </div>
@@ -189,5 +198,40 @@ function SetPassword() {
         </form>
       </div>
     </main>
+  );
+}
+
+function AccountDialog({ user, onClose }: { user: User; onClose: () => void }) {
+  const { setPassword, logout } = useAuth();
+  const [pw, setPw] = useState({ a: '', b: '' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (pw.a.length < 8) return setErr('Das Passwort braucht mindestens 8 Zeichen.');
+    if (pw.a !== pw.b) return setErr('Die beiden Eingaben stimmen nicht überein.');
+    setBusy(true);
+    const e = await setPassword(pw.a);
+    setBusy(false);
+    if (e) return setErr(e);
+    toast('Passwort geändert');
+    onClose();
+  };
+  return (
+    <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="panel stack" role="dialog" aria-labelledby="acc-h">
+        <div className="row spread"><h2 id="acc-h" className="sec m0">{user.name}</h2><button className="btn sm ghost" onClick={onClose}>Schliessen</button></div>
+        <p className="note m0">Rolle: {ROLE_LABELS[user.role]}</p>
+        {serverMode ? (
+          <form className="stack" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+            <h3 className="m0">Passwort ändern</h3>
+            <label className="f">Neues Passwort<input type="password" autoComplete="new-password" value={pw.a} onChange={(e) => setPw({ ...pw, a: e.target.value })} /></label>
+            <label className="f">Neues Passwort wiederholen<input type="password" autoComplete="new-password" value={pw.b} onChange={(e) => setPw({ ...pw, b: e.target.value })} /></label>
+            {err && <p className="warn-t">{err}</p>}
+            <button className="btn pri" type="submit" disabled={busy}>{busy ? 'Speichere …' : 'Passwort speichern'}</button>
+          </form>
+        ) : <p className="note">Im Testbetrieb ändert die Administration die PIN.</p>}
+        <button className="btn ghost" onClick={() => { onClose(); logout(); }}>Abmelden</button>
+      </div>
+    </div>
   );
 }

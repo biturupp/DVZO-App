@@ -4,7 +4,7 @@ import { today, useCalendars, useDutiesOn, useLines, useTrips, useUsers, useVehi
 import { holidayName, runsOn } from '../../domain/calendar';
 import { overlappingItems, resolveItems, tripLabel, tripTimes } from '../../domain/schedule';
 import { hm } from '../../domain/time';
-import { DUTY_TYPES, type Duty, type DutyItem, type DutyType } from '../../domain/types';
+import { DUTY_TYPES, ROLE_LABELS, type Duty, type DutyItem, type DutyType } from '../../domain/types';
 import { ensureSeeded } from '../../data/seed';
 import { toast } from '../../ui/toast';
 import { TimeInput } from '../../ui/TimeInput';
@@ -28,7 +28,7 @@ export function DutyEditor() {
   const save = (d: Duty) => db.duties.put({ ...d, sample: false });
   const addDuty = async () => {
     const id = uid('d');
-    await db.duties.add({ id, date, driverId: users.find((u) => u.role === 'fahrer')?.id ?? '', vehicleId: vehicles[0]?.id ?? '', items: [] });
+    await db.duties.add({ id, date, driverId: (users.find((u) => u.role === 'fahrer' && u.active !== false) ?? users[0])?.id ?? '', vehicleId: vehicles[0]?.id ?? '', items: [] });
     setEditId(id);
   };
 
@@ -129,7 +129,7 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
         <label className="f">Datum<DateInput value={duty.date} allowEmpty={false} onChange={(v) => onSave({ ...duty, date: v })} /></label>
         <label className="f">Fahrer/in
           <select value={duty.driverId} onChange={(e) => onSave({ ...duty, driverId: e.target.value })}>
-            {users.filter((u) => u.role === 'fahrer').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {users.filter((u) => u.active !== false || u.id === duty.driverId).sort((a, b) => Number(a.role !== 'fahrer') - Number(b.role !== 'fahrer') || a.name.localeCompare(b.name, 'de')).map((u) => <option key={u.id} value={u.id}>{u.name}{u.role !== 'fahrer' ? ` (${ROLE_LABELS[u.role]})` : ''}</option>)}
           </select>
         </label>
         <label className="f">Fahrzeug
@@ -187,31 +187,12 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
 
 
 function MasterData() {
-  const users = useUsers();
   const vehicles = useVehicles();
-  const [nu, setNu] = useState({ name: '', pin: '' });
   const [nv, setNv] = useState({ name: '', seats: '' });
   return (
     <section className="panel stack">
-      <h2 className="sec m0">Fahrer/innen und Fahrzeuge</h2>
-      <div className="tbl">
-        <table>
-          <thead><tr><th>Name</th><th>Rolle</th>{!serverMode && <th>PIN</th>}</tr></thead>
-          <tbody>{users.map((u) => <tr key={u.id}><td>{u.name}</td><td>{u.role === 'admin' ? 'Disposition' : 'Fahrer/in'}</td>{!serverMode && <td className="mono">{u.pin}</td>}</tr>)}</tbody>
-        </table>
-      </div>
-      {serverMode ? (
-        <p className="note">Neue Fahrer/innen lädst du in Supabase ein: Authentication → Users → «Invite user». Nach dem ersten Anmelden erscheinen sie hier.</p>
-      ) : <div className="row">
-        <label className="f grow1">Name<input type="text" value={nu.name} onChange={(e) => setNu({ ...nu, name: e.target.value })} /></label>
-        <label className="f">PIN<input type="text" inputMode="numeric" className="w-num" value={nu.pin} onChange={(e) => setNu({ ...nu, pin: e.target.value })} /></label>
-        <button className="btn" onClick={async () => {
-          if (!nu.name.trim() || !/^\d{4}$/.test(nu.pin)) return toast('Name und 4-stellige PIN eingeben');
-          await db.users.add({ id: uid('u'), name: nu.name.trim(), role: 'fahrer', pin: nu.pin });
-          toast(`${nu.name.trim()} hinzugefügt`);
-          setNu({ name: '', pin: '' });
-        }}>Hinzufügen</button>
-      </div>}
+      <h2 className="sec m0">Fahrzeuge</h2>
+      <p className="note">Fahrer/innen und weitere Benutzer verwaltest du unter «Administration».</p>
       <div className="tbl">
         <table>
           <thead><tr><th>Fahrzeug</th><th className="num">Plätze</th></tr></thead>

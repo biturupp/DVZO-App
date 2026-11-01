@@ -6,7 +6,7 @@ import { db } from '../../data/db';
 import { today, useLines, useTrips, useUsers, useVehicles } from '../../data/hooks';
 import { tripLabel } from '../../domain/schedule';
 import { hm, isoDate, signedMinSec } from '../../domain/time';
-import type { CountRecord } from '../../domain/types';
+import { canDispose, type CountRecord } from '../../domain/types';
 import { toast } from '../../ui/toast';
 import { DateInput } from '../../ui/DateInput';
 
@@ -25,7 +25,7 @@ export function Reports() {
   useEffect(() => { void fetchCountsRange(from, to); }, [from, to]);
   const recs = useLiveQuery(
     () => db.counts.where('date').between(from, to, true, true)
-      .filter((c) => (!lineId || c.lineId === lineId) && (user?.role === 'admin' || c.userId === user?.id)).toArray(),
+      .filter((c) => (!lineId || c.lineId === lineId) && (canDispose(user) || c.userId === user?.id)).toArray(),
     [from, to, lineId, user?.id], [] as CountRecord[],
   );
   const sum = (k: keyof Pick<CountRecord, 'adultsIn' | 'kidsIn'>) => recs.reduce((a, c) => a + c[k], 0);
