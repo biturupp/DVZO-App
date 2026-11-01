@@ -22,6 +22,12 @@ export function tripTimes(trip: Trip, line: Line | undefined): number[] {
   return out as number[];
 }
 
+/** Ankunftszeiten in Fahrtrichtung; ohne eigene Ankunft gilt die Abfahrtszeit. */
+export function tripArrivals(trip: Trip, line: Line | undefined): number[] {
+  const dep = tripTimes(trip, line);
+  return tripStops(trip, line).map((s, i) => trip.arrivals?.[s.id] ?? dep[i]);
+}
+
 export function tripLabel(trip: Trip, line: Line | undefined): string {
   const stops = tripStops(trip, line);
   const t = tripTimes(trip, line);
@@ -47,9 +53,8 @@ export function resolveItems(duty: Duty, trips: Trip[], lines: Line[]): Resolved
         trip = trips.find((t) => t.id === it.tripId) ?? null;
         line = trip ? lines.find((l) => l.id === trip!.lineId) ?? null : null;
         if (trip && line) {
-          const t = tripTimes(trip, line);
-          s = t[0];
-          e = t[t.length - 1];
+          s = tripTimes(trip, line)[0];
+          e = tripArrivals(trip, line).at(-1) ?? s;
         }
       }
       return { ...it, s: s ?? 0, e: e ?? s ?? 0, trip, line };

@@ -45,6 +45,8 @@ export interface Trip {
   dir: Direction;
   /** Abfahrtszeit pro Haltestelle (Stop-ID → Minuten ab Mitternacht). */
   times: Record<string, number>;
+  /** Ankunftszeit, nur wo sie von der Abfahrt abweicht (z. B. Aufenthalt oder Wendezeit). */
+  arrivals?: Record<string, number>;
 }
 
 export const DUTY_TYPES = {

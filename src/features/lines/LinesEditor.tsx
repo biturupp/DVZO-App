@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { db, uid } from '../../data/db';
-import { useLines } from '../../data/hooks';
+import { useDutiesAll, useLines, useTrips } from '../../data/hooks';
 import { parseCoordinates, type LatLon } from '../../domain/geo';
 import type { Line, Stop } from '../../domain/types';
 import { MapView } from '../../ui/MapView';
@@ -13,7 +13,29 @@ export function LinesEditor() {
   const [lineId, setLineId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [coord, setCoord] = useState('');
+  const trips = useTrips();
+  const duties = useDutiesAll();
+  const [delArm, setDelArm] = useState(false);
   const line = lines.find((l) => l.id === lineId) ?? lines[0];
+  const deleteLine = async () => {
+    if (!line) return;
+    const tripIds = new Set(trips.filter((t) => t.lineId === line.id).map((t) => t.id));
+    const used = duties.filter((d) => d.items.some((i) => i.tripId && tripIds.has(i.tripId)));
+    if (used.length) {
+      setDelArm(false);
+      return toast(`Die Linie ist in ${used.length === 1 ? 'einem Dienst' : used.length + ' Diensten'} eingeplant (${[...new Set(used.map((d) => d.date.split('-').reverse().join('.')))].join(', ')}). Zuerst dort entfernen.`);
+    }
+    if (!delArm) {
+      setDelArm(true);
+      setTimeout(() => setDelArm(false), 5000);
+      return;
+    }
+    await db.trips.bulkDelete([...tripIds]);
+    await db.lines.delete(line.id);
+    setDelArm(false);
+    setLineId(null);
+    toast(`${line.name} gelöscht`);
+  };
 
   const update = (patch: Partial<Line>) => line && db.lines.update(line.id, patch);
   const updateStop = (id: string, patch: Partial<Stop>) => line && update({ stops: line.stops.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
@@ -69,7 +91,10 @@ export function LinesEditor() {
               <label className="f">Farbe<input type="color" value={line.color} onChange={(e) => update({ color: e.target.value })} /></label>
             </div>
             <MapView stops={line.stops} color={line.color} fitKey={line.id} onMapClick={(p) => addStop(p)} height={380} />
-            <p className="note">Tippe in die Karte, um am Ende der Linie eine Haltestelle zu setzen.</p>
+            <p className="note">Tippe in die Karte, um am Ende der Linie eine Haltestelle zu setzen. Die Linie nur in Hinrichtung erfassen, die Rückrichtung entsteht automatisch.</p>
+            <button className={`btn sm${delArm ? ' danger' : ''}`} style={{ justifySelf: 'start' }} onClick={deleteLine}>
+              {delArm ? `${line.name} mit allen Kursen wirklich löschen?` : 'Linie löschen'}
+            </button>
           </section>
           <section className="panel stack">
             <h2 className="sec m0">Haltestelle per Koordinaten</h2>
