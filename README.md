@@ -54,4 +54,4 @@ Falls später Hintergrund-Ortung nötig ist, kann dieselbe App mit Capacitor als
 
 1. Server für Anmeldung und gemeinsame Daten (Vorschlag: Supabase, Region Europa) und Synchronisation der Zählungen
 2. Echte DVZO-Linien, Haltestellen und Fahrpläne erfassen
-3. Hosting der Web-App (z. B. Netlify, Vercel oder GitHub Pages)
+3. Hosting auf Netlify: Repo in Netlify verbinden, Einstellungen kommen aus `netlify.toml`
