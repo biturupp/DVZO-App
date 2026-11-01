@@ -1,8 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { CountRecord, Duty, Line, Settings, Trip, User, Vehicle } from '../domain/types';
+import type { CountRecord, Duty, Line, ServiceCalendar, Settings, Trip, User, Vehicle } from '../domain/types';
 
 /** Tabellen, die mit dem Server abgeglichen werden. */
-export const SYNC_TABLES = ['lines', 'trips', 'vehicles', 'duties', 'counts'] as const;
+export const SYNC_TABLES = ['calendars', 'lines', 'trips', 'vehicles', 'duties', 'counts'] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 
 /** Markiert lokal geänderte Datensätze, die noch nicht beim Server sind. */
@@ -29,6 +29,7 @@ export class DvzoDb extends Dexie {
   trips!: EntityTable<Trip & Dirty, 'id'>;
   duties!: EntityTable<Duty & Dirty, 'id'>;
   counts!: EntityTable<CountRecord & Dirty, 'id'>;
+  calendars!: EntityTable<ServiceCalendar & Dirty, 'id'>;
   settings!: EntityTable<Settings, 'id'>;
   tombstones!: EntityTable<Tombstone, 'id'>;
 
@@ -53,6 +54,10 @@ export class DvzoDb extends Dexie {
       duties: 'id, date, driverId, _dirty',
       counts: 'id, date, tripId, dutyId, lineId, _dirty',
       tombstones: '++id, table',
+    });
+    this.version(3).stores({
+      calendars: 'id, _dirty',
+      trips: 'id, lineId, calendarId, _dirty',
     });
 
     for (const t of SYNC_TABLES) {

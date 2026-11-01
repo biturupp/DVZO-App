@@ -44,7 +44,7 @@ async function countPending() {
 }
 
 /** Reihenfolge wegen Fremdschlüsseln: zuerst Stammdaten, zuletzt Zählungen. */
-const PUSH_ORDER: SyncTable[] = ['vehicles', 'lines', 'trips', 'duties', 'counts'];
+const PUSH_ORDER: SyncTable[] = ['calendars', 'vehicles', 'lines', 'trips', 'duties', 'counts'];
 
 async function push() {
   const sb = supabase!;
@@ -75,19 +75,20 @@ async function push() {
 
 async function pull() {
   const sb = supabase!;
-  const [profiles, vehicles, lines, trips, duties, counts] = await Promise.all([
+  const [profiles, calendars, vehicles, lines, trips, duties, counts] = await Promise.all([
     sb.from('profiles').select('id,name,role'),
+    sb.from('calendars').select('*'),
     sb.from('vehicles').select('*'),
     sb.from('lines').select('*'),
     sb.from('trips').select('*'),
     sb.from('duties').select('*').gte('date', daysAgo(COUNT_DAYS)),
     sb.from('counts').select('*').gte('date', daysAgo(COUNT_DAYS)),
   ]);
-  for (const r of [profiles, vehicles, lines, trips, duties, counts]) if (r.error) throw new Error(r.error.message);
+  for (const r of [profiles, calendars, vehicles, lines, trips, duties, counts]) if (r.error) throw new Error(r.error.message);
 
   db.applyingRemote = true;
   try {
-    await db.transaction('rw', [db.users, db.vehicles, db.lines, db.trips, db.duties, db.counts], async () => {
+    await db.transaction('rw', [db.users, db.calendars, db.vehicles, db.lines, db.trips, db.duties, db.counts], async () => {
       await db.users.clear();
       await db.users.bulkPut(profiles.data!.map(profileToUser));
       const replace = async (t: SyncTable, rows: unknown[], keepOlder?: (r: { date?: string }) => boolean) => {
@@ -100,6 +101,7 @@ async function pull() {
         await table.bulkPut(rows.map((r: any) => ({ ...(fromRow[t](r) as object), _dirty: 0 })).filter((r: any) => !dirty.has(r.id)));
       };
       const older = (r: { date?: string }) => !!r.date && r.date < daysAgo(COUNT_DAYS);
+      await replace('calendars', calendars.data!);
       await replace('vehicles', vehicles.data!);
       await replace('lines', lines.data!);
       await replace('trips', trips.data!);

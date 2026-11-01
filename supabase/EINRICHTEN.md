@@ -38,3 +38,4 @@ und zwar **bevor** die zugehörige Änderung gemergt wird. Bisher:
 | --- | --- |
 | `20261101000000_init.sql` | Grundschema |
 | `20261101200000_ankunftszeiten.sql` | Ankunftszeiten pro Haltestelle |
+| `20261101210000_fahrtag_intervalle.sql` | Fahrtag-Intervalle, Kursnummer und Intervall pro Kurs |

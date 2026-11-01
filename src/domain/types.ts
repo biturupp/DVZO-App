@@ -47,6 +47,37 @@ export interface Trip {
   times: Record<string, number>;
   /** Ankunftszeit, nur wo sie von der Abfahrt abweicht (z. B. Aufenthalt oder Wendezeit). */
   arrivals?: Record<string, number>;
+  /** Kursnummer, frei wählbar (z. B. «3»). */
+  number?: string;
+  /** Fahrtag-Intervall; ohne Angabe verkehrt der Kurs täglich. */
+  calendarId?: string | null;
+}
+
+/** Wie allgemeine Feiertage behandelt werden. */
+export type HolidayRule = 'normal' | 'sunday' | 'never' | 'only';
+
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+/**
+ * Fahrtag-Intervall: eine benannte Vorlage, die festlegt, an welchen Tagen ein Kurs verkehrt.
+ * Beispiel «Sonntage Mai–Okt. ohne Sommerferien»: Zeitraum 1.5.–31.10., Wochentag So, Ausnahme 1.7.–31.8.
+ */
+export interface ServiceCalendar {
+  id: string;
+  name: string;
+  /** Gültigkeitszeitraum (ISO-Datum, inklusiv). */
+  from: string;
+  to: string;
+  /** Wochentage 1 = Montag … 7 = Sonntag. */
+  weekdays: number[];
+  holidays: HolidayRule;
+  /** Zusätzliche Fahrtage (auch ausserhalb von Zeitraum/Wochentagen). */
+  extraDates: string[];
+  /** Ausgenommene Zeiträume (einzelner Tag: from = to). */
+  exceptions: DateRange[];
 }
 
 export const DUTY_TYPES = {
