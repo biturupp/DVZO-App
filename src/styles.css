@@ -161,3 +161,5 @@ input.date24.invalid{border-color:var(--late);outline:2px solid var(--late)}
 .preview-month:last-child{border-bottom:0}
 .preview-month .days{white-space:pre-wrap;font-variant-numeric:tabular-nums}
 @media (max-width:560px){.preview-month{grid-template-columns:1fr auto}.preview-month .days{grid-column:1/-1}}
+.update-banner{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2000;display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:calc(100vw - 32px)}
+.version{font-size:11px;color:var(--muted);text-align:center;padding:16px 0 8px}
