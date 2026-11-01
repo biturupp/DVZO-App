@@ -9,6 +9,7 @@ import { ensureSeeded } from './data/seed';
 import { serverMode } from './data/supabase';
 import { SimProvider } from './features/drive/SimContext';
 import { Toaster } from './ui/toast';
+import { UpdateBanner } from './ui/UpdateBanner';
 
 (serverMode ? Promise.resolve() : ensureSeeded(db)).then(() => {
   createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,8 @@ import { Toaster } from './ui/toast';
         <SimProvider>
           <App />
           <Toaster />
+          <UpdateBanner />
+          <p className="version">DVZO-App · Version {__APP_VERSION__}</p>
         </SimProvider>
       </AuthProvider>
     </StrictMode>,
