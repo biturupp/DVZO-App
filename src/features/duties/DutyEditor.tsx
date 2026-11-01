@@ -9,6 +9,7 @@ import { ensureSeeded } from '../../data/seed';
 import { toast } from '../../ui/toast';
 import { TimeInput } from '../../ui/TimeInput';
 import { serverMode } from '../../data/supabase';
+import { DateInput } from '../../ui/DateInput';
 
 const DEFAULT_MIN: Record<DutyType, number> = { anfahrt: 20, fahrt: 0, pause: 30, wechsel: 20, tanken: 15, putzen: 20, rueckfahrt: 20 };
 
@@ -37,7 +38,7 @@ export function DutyEditor() {
         <div className="row spread">
           <h2 className="sec m0">Dienste</h2>
           <div className="row">
-            <label className="f">Datum<input type="date" value={date} onChange={(e) => { setDate(e.target.value); setEditId(null); }} /></label>
+            <label className="f">Datum<DateInput value={date} allowEmpty={false} onChange={(v) => { setDate(v); setEditId(null); }} /></label>
             <button className="btn pri" onClick={addDuty}>+ Dienst</button>
           </div>
         </div>
@@ -125,7 +126,7 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
       <div className="row spread"><h2 className="sec m0">Dienst bearbeiten</h2><button className="btn sm" onClick={onClose}>Schliessen</button></div>
       {hol && <p className="note">Dieser Tag ist ein Feiertag ({hol}).</p>}
       <div className="row">
-        <label className="f">Datum<input type="date" value={duty.date} onChange={(e) => onSave({ ...duty, date: e.target.value })} /></label>
+        <label className="f">Datum<DateInput value={duty.date} allowEmpty={false} onChange={(v) => onSave({ ...duty, date: v })} /></label>
         <label className="f">Fahrer/in
           <select value={duty.driverId} onChange={(e) => onSave({ ...duty, driverId: e.target.value })}>
             {users.filter((u) => u.role === 'fahrer').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}

@@ -56,3 +56,28 @@ export function normalizeTime(input: string): string | null {
   if (h > 23 || m > 59) return null;
   return `${pad2(h)}:${pad2(m)}`;
 }
+
+/** ISO «JJJJ-MM-TT» → «TT.MM.JJJJ». */
+export function fmtDate(iso: string): string {
+  return iso ? iso.split('-').reverse().join('.') : '';
+}
+
+/**
+ * Freie Datumseingabe (Schweizer Schreibweise) in ISO «JJJJ-MM-TT» umwandeln.
+ * Akzeptiert «1.5.2027», «01.05.27», «1.5.» und «1.5» (Jahr aus `refYear`). Ungültig → null.
+ */
+export function parseDate(input: string, refYear = new Date().getFullYear()): string | null {
+  const s = input.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return validIso(s);
+  const m = /^(\d{1,2})[./ -](\d{1,2})(?:[./ -](\d{2}|\d{4})?)?\.?$/.exec(s);
+  if (!m) return null;
+  let y = m[3] ? Number(m[3]) : refYear;
+  if (m[3] && m[3].length === 2) y += 2000;
+  return validIso(`${y}-${pad2(Number(m[2]))}-${pad2(Number(m[1]))}`);
+}
+
+function validIso(iso: string): string | null {
+  const [y, mo, d] = iso.split('-').map(Number);
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? iso : null;
+}

@@ -8,6 +8,7 @@ import { tripLabel } from '../../domain/schedule';
 import { hm, isoDate, signedMinSec } from '../../domain/time';
 import type { CountRecord } from '../../domain/types';
 import { toast } from '../../ui/toast';
+import { DateInput } from '../../ui/DateInput';
 
 const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return isoDate(d); };
 
@@ -63,8 +64,8 @@ export function Reports() {
             {lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </label>
-        <label className="f">Von<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="f">Bis<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <label className="f">Von<DateInput value={from} allowEmpty={false} onChange={setFrom} defaultMonth={to} /></label>
+        <label className="f">Bis<DateInput value={to} allowEmpty={false} onChange={setTo} defaultMonth={from} /></label>
         <button className="btn" disabled={!recs.length} onClick={copyCsv}>Als CSV kopieren</button>
         {recs.some((r) => r.sample) && <span className="chip sim">enthält Beispieldaten</span>}
       </div>

@@ -4,8 +4,23 @@ import { useCalendars, useTrips } from '../../data/hooks';
 import { describe, holidays, serviceDates, WEEKDAY_LABELS } from '../../domain/calendar';
 import type { DateRange, HolidayRule, ServiceCalendar } from '../../domain/types';
 import { toast } from '../../ui/toast';
+import { DateInput } from '../../ui/DateInput';
 
 const fmt = (s: string) => s.split('-').reverse().join('.');
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const WD_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+/** Fahrtage nach Monat gruppieren: [[«Mai 2027», [«So 2.», …]], …]. */
+function byMonth(dates: string[]): [string, string[]][] {
+  const out = new Map<string, string[]>();
+  for (const d of dates) {
+    const key = `${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
+    const wd = (new Date(d + 'T12:00').getDay() + 6) % 7;
+    if (!out.has(key)) out.set(key, []);
+    out.get(key)!.push(`${WD_SHORT[wd]} ${Number(d.slice(8))}.`);
+  }
+  return [...out];
+}
 const HOLIDAY_RULES: [HolidayRule, string][] = [
   ['normal', 'wie gewöhnlicher Wochentag'],
   ['sunday', 'wie Sonntag'],
@@ -83,6 +98,7 @@ function CalendarForm({ cal, onClose }: { cal: ServiceCalendar; onClose: () => v
   const [extra, setExtra] = useState('');
   const set = (patch: Partial<ServiceCalendar>) => setC({ ...c, ...patch });
   const toggleDay = (d: number) => set({ weekdays: c.weekdays.includes(d) ? c.weekdays.filter((x) => x !== d) : [...c.weekdays, d].sort() });
+  const lastExc = c.exceptions.length ? c.exceptions[c.exceptions.length - 1].to : '';
   const dates = c.from && c.to && c.from <= c.to ? serviceDates(c) : [];
   const hol = [...new Set([Number(c.from.slice(0, 4)), Number(c.to.slice(0, 4))])].flatMap((y) => [...holidays(y)].filter(([d]) => d >= c.from && d <= c.to));
 
@@ -99,8 +115,8 @@ function CalendarForm({ cal, onClose }: { cal: ServiceCalendar; onClose: () => v
       <h3 className="m0">Intervall {cal.name ? `«${cal.name}»` : 'erstellen'}</h3>
       <div className="row">
         <label className="f grow2">Name<input type="text" value={c.name} onChange={(e) => set({ name: e.target.value })} placeholder="z. B. Sonntage Mai–Okt. ohne Sommerferien" /></label>
-        <label className="f">Von<input type="date" value={c.from} onChange={(e) => set({ from: e.target.value })} /></label>
-        <label className="f">Bis<input type="date" value={c.to} onChange={(e) => set({ to: e.target.value })} /></label>
+        <label className="f">Von<DateInput value={c.from} onChange={(v) => set({ from: v })} defaultMonth={c.to || undefined} /></label>
+        <label className="f">Bis<DateInput value={c.to} onChange={(v) => set({ to: v })} defaultMonth={c.from || undefined} /></label>
       </div>
       <div className="stack" style={{ gap: 6 }}>
         <span className="flabel">Wochentage</span>
@@ -132,8 +148,8 @@ function CalendarForm({ cal, onClose }: { cal: ServiceCalendar; onClose: () => v
             </div>
           ))}
           <div className="row" style={{ gap: 6 }}>
-            <label className="f">Von<input type="date" value={exc.from} onChange={(e) => setExc({ from: e.target.value, to: exc.to || e.target.value })} /></label>
-            <label className="f">Bis<input type="date" value={exc.to} onChange={(e) => setExc({ ...exc, to: e.target.value })} /></label>
+            <label className="f">Von<DateInput value={exc.from} onChange={(v) => setExc({ from: v, to: exc.to || v })} defaultMonth={lastExc || c.from || undefined} /></label>
+            <label className="f">Bis<DateInput value={exc.to} onChange={(v) => setExc({ ...exc, to: v })} defaultMonth={exc.from || lastExc || c.from || undefined} /></label>
             <button type="button" className="btn" onClick={() => {
               if (!exc.from) return toast('Mindestens «Von» angeben');
               const r = { from: exc.from, to: exc.to && exc.to >= exc.from ? exc.to : exc.from };
@@ -151,7 +167,7 @@ function CalendarForm({ cal, onClose }: { cal: ServiceCalendar; onClose: () => v
             </div>
           ))}
           <div className="row" style={{ gap: 6 }}>
-            <label className="f">Datum<input type="date" value={extra} onChange={(e) => setExtra(e.target.value)} /></label>
+            <label className="f">Datum<DateInput value={extra} onChange={setExtra} defaultMonth={c.extraDates[c.extraDates.length - 1] || c.from || undefined} /></label>
             <button type="button" className="btn" onClick={() => {
               if (!extra) return;
               if (!c.extraDates.includes(extra)) set({ extraDates: [...c.extraDates, extra].sort() });
@@ -162,7 +178,13 @@ function CalendarForm({ cal, onClose }: { cal: ServiceCalendar; onClose: () => v
       </div>
       <div className="preview">
         <b>{dates.length} Fahrtage</b>
-        {dates.length > 0 && <span className="note"> · {dates.slice(0, 12).map(fmt).join(', ')}{dates.length > 12 ? ' …' : ''}</span>}
+        {dates.length > 0 && (
+          <div className="preview-list">
+            {byMonth(dates).map(([m, ds]) => (
+              <div key={m} className="preview-month"><b>{m}</b> <span className="note">({ds.length})</span><span className="days">{ds.join('  ')}</span></div>
+            ))}
+          </div>
+        )}
         {hol.length > 0 && <div className="note">Feiertage im Zeitraum: {hol.map(([d, n]) => `${n} ${fmt(d).slice(0, 6)}`).join(', ')}</div>}
       </div>
       <div className="row">
