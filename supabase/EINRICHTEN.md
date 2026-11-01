@@ -7,11 +7,12 @@
 2. **Eigenes Konto anlegen:** **Authentication → Users → Add user → Create new user**.
    E-Mail und Passwort eingeben, «Auto Confirm User» anhaken.
 
-3. **Sich selbst zur Disposition machen:** Im SQL Editor (E-Mail anpassen):
+3. **Sich selbst zur Disposition machen:** Im SQL Editor eine neue Abfrage öffnen («+» / «New query»), Folgendes einfügen, E-Mail anpassen, **Run**. Ergebnis: «1 row affected».
 
    ```sql
-   update public.profiles set role = 'admin', name = 'Beat'
-   where id = (select id from auth.users where email = 'deine@email.ch');
+   insert into public.profiles (id, name, role)
+   select id, 'Beat', 'admin' from auth.users where email = 'deine@email.ch'
+   on conflict (id) do update set role = 'admin', name = excluded.name;
    ```
 
 4. **Adresse der App eintragen** (sobald Netlify läuft): **Authentication → URL Configuration**,
