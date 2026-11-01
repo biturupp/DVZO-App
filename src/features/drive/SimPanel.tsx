@@ -4,6 +4,7 @@ import { useSettings } from '../../data/hooks';
 import { hm, parseHm, signedMinSec } from '../../domain/time';
 import { enableSound, keepScreenOn, soundEnabled } from '../../ui/sound';
 import { toast } from '../../ui/toast';
+import { TimeInput } from '../../ui/TimeInput';
 import { useSim, type PositionMode } from './SimContext';
 
 let initialised = false;
@@ -40,7 +41,7 @@ export function SimPanel({ firstStart }: { firstStart: number | null }) {
         </label>
         <label className="f">
           Simulation starten um
-          <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+          <TimeInput aria-label="Simulation starten um" value={start} onCommit={setStart} />
         </label>
         <label className="f">
           Tempo

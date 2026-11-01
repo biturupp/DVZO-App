@@ -59,7 +59,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
 td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-td input[type=time]{width:6.6em;padding:5px}
+td input[type=time],td input.time24{width:4.6em;padding:5px}
 td input[type=text]{width:100%}
 /* Driving view */
 .status{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
@@ -140,3 +140,5 @@ label.check{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:6
 .w-kurs{width:4em}
 table.tt select{max-width:12em}
 tr.fresh td{background:color-mix(in srgb,var(--signal) 18%,transparent)}
+input.time24{font-family:var(--f-mono);font-variant-numeric:tabular-nums;width:5.2em;text-align:center}
+input.time24.invalid{border-color:var(--late);outline:2px solid var(--late)}

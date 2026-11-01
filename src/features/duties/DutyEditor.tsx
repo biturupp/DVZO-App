@@ -7,6 +7,7 @@ import { hm } from '../../domain/time';
 import { DUTY_TYPES, type Duty, type DutyItem, type DutyType } from '../../domain/types';
 import { ensureSeeded } from '../../data/seed';
 import { toast } from '../../ui/toast';
+import { TimeInput } from '../../ui/TimeInput';
 import { serverMode } from '../../data/supabase';
 
 const DEFAULT_MIN: Record<DutyType, number> = { anfahrt: 20, fahrt: 0, pause: 30, wechsel: 20, tanken: 15, putzen: 20, rueckfahrt: 20 };
@@ -161,8 +162,8 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
                   </>
                 ) : (
                   <>
-                    <td><input type="time" defaultValue={i.start ?? ''} key={i.id + i.start} onBlur={(e) => setItem(i.id, { start: e.target.value || null })} /></td>
-                    <td><input type="time" defaultValue={i.end ?? ''} key={i.id + i.end} onBlur={(e) => setItem(i.id, { end: e.target.value || null })} /></td>
+                    <td><TimeInput aria-label="Von" allowEmpty value={i.start ?? ''} onCommit={(v) => setItem(i.id, { start: v || null })} /></td>
+                    <td><TimeInput aria-label="Bis" allowEmpty value={i.end ?? ''} onCommit={(v) => setItem(i.id, { end: v || null })} /></td>
                     <td><input type="text" defaultValue={i.note} onBlur={(e) => setItem(i.id, { note: e.target.value })} placeholder="z. B. Ort" /></td>
                   </>
                 )}

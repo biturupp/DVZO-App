@@ -35,3 +35,24 @@ export function isoDate(d: Date): string {
 export function minutesOfDay(d: Date): number {
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
 }
+
+/**
+ * Freie Zeiteingabe in «HH:MM» (24 Stunden) umwandeln.
+ * Akzeptiert z. B. «8:30», «8.30», «0830», «830», «8» und «24:00» nicht. Ungültig → null.
+ */
+export function normalizeTime(input: string): string | null {
+  const s = input.trim().replace(/[.,h ]/g, ':');
+  if (!s) return null;
+  let h: number;
+  let m: number;
+  const colon = /^(\d{1,2}):(\d{1,2})?$/.exec(s);
+  if (colon) {
+    h = Number(colon[1]);
+    m = Number(colon[2] ?? 0);
+  } else if (/^\d{1,4}$/.test(s)) {
+    if (s.length <= 2) { h = Number(s); m = 0; }
+    else { h = Number(s.slice(0, s.length - 2)); m = Number(s.slice(-2)); }
+  } else return null;
+  if (h > 23 || m > 59) return null;
+  return `${pad2(h)}:${pad2(m)}`;
+}
