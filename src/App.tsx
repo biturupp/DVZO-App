@@ -8,6 +8,8 @@ import { LinesEditor } from './features/lines/LinesEditor';
 import { Reports } from './features/reports/Reports';
 import { TimetableEditor } from './features/timetable/TimetableEditor';
 import { hm } from './domain/time';
+import { serverMode } from './data/supabase';
+import { onSyncStatus, syncNow, type SyncStatus } from './data/sync';
 
 type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'dienst' | 'auswertung';
 
@@ -26,8 +28,9 @@ function useHashTab(allowed: Tab[]): [Tab, (t: Tab) => void] {
 }
 
 export function App() {
-  const { user, logout } = useAuth();
-  if (!user) return <Login />;
+  const { user, logout, mustSetPassword } = useAuth();
+  if (serverMode && mustSetPassword) return <SetPassword />;
+  if (!user) return serverMode ? <EmailLogin /> : <Login />;
   const tabs = user.role === 'admin' ? ADMIN_TABS : DRIVER_TABS;
   return <Shell tabs={tabs} userName={user.name} onLogout={logout} />;
 }
@@ -43,6 +46,7 @@ function Shell({ tabs, userName, onLogout }: { tabs: [Tab, string][]; userName: 
             <div className="brand"><b>DVZO-App</b><span>Oldtimerbetrieb DVZO</span></div>
             <span className="clock">{hm(sim.now)}</span>
             {sim.clock.sim && <span className="chip sim">Simulation {sim.clock.speed ? `${sim.clock.speed}×` : 'pausiert'}</span>}
+            {serverMode && <SyncChip />}
             <span className="chip">{userName}</span>
             <button className="btn sm ghost" onClick={onLogout}>Abmelden</button>
           </div>
@@ -64,7 +68,7 @@ function Shell({ tabs, userName, onLogout }: { tabs: [Tab, string][]; userName: 
 
 function Login() {
   const users = useUsers();
-  const { login } = useAuth();
+  const { loginPin: login } = useAuth();
   const [sel, setSel] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [err, setErr] = useState('');
@@ -93,6 +97,95 @@ function Login() {
           {err && <p className="warn-t">{err}</p>}
           <button className="btn pri big" type="submit">Anmelden</button>
           <p className="note">Testbetrieb: Disposition 1234, Anna Keller 1111, Marco Brunner 2222.</p>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+function SyncChip() {
+  const [s, setS] = useState<SyncStatus | null>(null);
+  useEffect(() => onSyncStatus(setS), []);
+  if (!s) return null;
+  const text = !s.online ? `Offline${s.pending ? ` · ${s.pending} ausstehend` : ''}` : s.error ? 'Abgleich fehlgeschlagen' : s.pending ? `${s.pending} ausstehend` : 'Abgeglichen';
+  const cls = !s.online || s.error ? 'chip warn' : s.pending ? 'chip sim' : 'chip ok';
+  return (
+    <button className={cls} style={{ border: 0, cursor: 'pointer' }} title={s.error || (s.lastSync ? `Zuletzt ${s.lastSync.toLocaleTimeString('de-CH')}` : '')} onClick={() => void syncNow()}>
+      {text}
+    </button>
+  );
+}
+
+function EmailLogin() {
+  const { loginEmail, sendReset } = useAuth();
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [info, setInfo] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <main className="wrap">
+      <div className="login">
+        <div>
+          <h1 className="title">DVZO-App</h1>
+          <p className="note">Oldtimerbetrieb DVZO · Fahrgastzählung, Fahrpläne und Dienstpläne</p>
+        </div>
+        <form
+          className="panel stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setErr((await loginEmail(email, pw)) ?? '');
+            setBusy(false);
+          }}
+        >
+          <h2 className="sec m0">Anmelden</h2>
+          <label className="f">E-Mail<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+          <label className="f">Passwort<input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required /></label>
+          {err && <p className="warn-t">{err}</p>}
+          {info && <p className="note">{info}</p>}
+          <button className="btn pri big" type="submit" disabled={busy}>Anmelden</button>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={async () => {
+              if (!email) return setErr('Bitte zuerst die E-Mail-Adresse eingeben.');
+              const r = await sendReset(email);
+              setErr(r ?? '');
+              if (!r) setInfo('Wir haben dir einen Link zum Zurücksetzen geschickt.');
+            }}
+          >
+            Passwort vergessen
+          </button>
+          <p className="note">Noch kein Konto? Die Disposition lädt dich per E-Mail ein.</p>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+function SetPassword() {
+  const { setPassword } = useAuth();
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [err, setErr] = useState('');
+  return (
+    <main className="wrap">
+      <div className="login">
+        <h1 className="title">Passwort festlegen</h1>
+        <form
+          className="panel stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (pw.length < 8) return setErr('Mindestens 8 Zeichen.');
+            if (pw !== pw2) return setErr('Die beiden Passwörter sind nicht gleich.');
+            setErr((await setPassword(pw)) ?? '');
+          }}
+        >
+          <label className="f">Neues Passwort<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
+          <label className="f">Wiederholen<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
+          {err && <p className="warn-t">{err}</p>}
+          <button className="btn pri big" type="submit">Speichern</button>
         </form>
       </div>
     </main>

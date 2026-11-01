@@ -4,6 +4,10 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Öffentliche Supabase-Zugangsdaten (der «publishable» Schlüssel ist für den Browser gedacht;
+  # den Schutz der Daten übernehmen die Zugriffsregeln in supabase/migrations)
+  VITE_SUPABASE_URL = "https://nlluqztynqtzothmcbfu.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "sb_publishable_uI8QSX3JIZblhU2TgRQMmg_A5gBlHH9"
 
 # Service Worker nie zwischenspeichern, damit neue Versionen sofort ankommen
 [[headers]]

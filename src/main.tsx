@@ -6,10 +6,11 @@ import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { db } from './data/db';
 import { ensureSeeded } from './data/seed';
+import { serverMode } from './data/supabase';
 import { SimProvider } from './features/drive/SimContext';
 import { Toaster } from './ui/toast';
 
-ensureSeeded(db).then(() => {
+(serverMode ? Promise.resolve() : ensureSeeded(db)).then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <AuthProvider>

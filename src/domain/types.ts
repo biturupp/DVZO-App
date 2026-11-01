@@ -103,8 +103,6 @@ export interface CountRecord {
   /** true, wenn mit «Fahrzeug leeren» erzeugt. */
   emptied: boolean;
   sample?: boolean;
-  /** Für die spätere Server-Synchronisation. */
-  synced?: 0 | 1;
 }
 
 export interface Settings {

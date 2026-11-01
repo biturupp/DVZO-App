@@ -60,7 +60,7 @@ export function DriveView() {
     const s = stops[idx];
     const rec: CountRecord = {
       id: uid('c'), date, dutyId: duty.id, tripId: active.trip.id, lineId: active.trip.lineId, stopId: s.id, stopName: s.name, idx,
-      ...f, time: now, delay: lageForRecord(lage), userId: duty.driverId, vehicleId: duty.vehicleId, emptied, synced: 0,
+      ...f, time: now, delay: lageForRecord(lage), userId: duty.driverId, vehicleId: duty.vehicleId, emptied,
     };
     await db.counts.add(rec);
     setForm(EMPTY);

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { fetchCountsRange } from '../../data/sync';
 import { useAuth } from '../../auth/AuthContext';
 import { db } from '../../data/db';
 import { today, useLines, useTrips, useUsers, useVehicles } from '../../data/hooks';
@@ -20,6 +21,7 @@ export function Reports() {
   const [lineId, setLineId] = useState('');
   const [from, setFrom] = useState(yesterday());
   const [to, setTo] = useState(today());
+  useEffect(() => { void fetchCountsRange(from, to); }, [from, to]);
   const recs = useLiveQuery(
     () => db.counts.where('date').between(from, to, true, true)
       .filter((c) => (!lineId || c.lineId === lineId) && (user?.role === 'admin' || c.userId === user?.id)).toArray(),

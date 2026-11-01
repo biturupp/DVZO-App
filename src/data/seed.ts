@@ -106,7 +106,7 @@ export function buildSampleData(today = new Date()) {
         counts.push({
           id: uid('c'), sample: true, date: yDate, dutyId: d.id, tripId: tr.id, lineId: L.id, stopId: s.id, stopName: s.name, idx,
           adultsIn, adultsOut, kidsIn, kidsOut, time: tr.times[s.id] + rnd(3), delay: rnd(3) - 1,
-          userId: d.driverId, vehicleId: d.vehicleId, emptied: last, synced: 0,
+          userId: d.driverId, vehicleId: d.vehicleId, emptied: last,
         });
       });
     }

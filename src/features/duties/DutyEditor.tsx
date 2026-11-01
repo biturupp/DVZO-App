@@ -6,6 +6,7 @@ import { hm } from '../../domain/time';
 import { DUTY_TYPES, type Duty, type DutyItem, type DutyType } from '../../domain/types';
 import { ensureSeeded } from '../../data/seed';
 import { toast } from '../../ui/toast';
+import { serverMode } from '../../data/supabase';
 
 const DEFAULT_MIN: Record<DutyType, number> = { anfahrt: 20, fahrt: 0, pause: 30, wechsel: 20, tanken: 15, putzen: 20, rueckfahrt: 20 };
 
@@ -65,7 +66,7 @@ export function DutyEditor() {
 
       <div className="grid2">
         <MasterData />
-        <section className="panel stack">
+        {!serverMode && <section className="panel stack">
           <h2 className="sec m0">Daten auf diesem Gerät</h2>
           <p className="note">Bis der Server angebunden ist, liegen alle Daten nur auf diesem Gerät.</p>
           <button
@@ -80,7 +81,7 @@ export function DutyEditor() {
           >
             {resetArm ? 'Wirklich alles zurücksetzen?' : 'Beispieldaten wiederherstellen'}
           </button>
-        </section>
+        </section>}
       </div>
     </div>
   );
@@ -184,11 +185,13 @@ function MasterData() {
       <h2 className="sec m0">Fahrer/innen und Fahrzeuge</h2>
       <div className="tbl">
         <table>
-          <thead><tr><th>Name</th><th>Rolle</th><th>PIN</th></tr></thead>
-          <tbody>{users.map((u) => <tr key={u.id}><td>{u.name}</td><td>{u.role === 'admin' ? 'Disposition' : 'Fahrer/in'}</td><td className="mono">{u.pin}</td></tr>)}</tbody>
+          <thead><tr><th>Name</th><th>Rolle</th>{!serverMode && <th>PIN</th>}</tr></thead>
+          <tbody>{users.map((u) => <tr key={u.id}><td>{u.name}</td><td>{u.role === 'admin' ? 'Disposition' : 'Fahrer/in'}</td>{!serverMode && <td className="mono">{u.pin}</td>}</tr>)}</tbody>
         </table>
       </div>
-      <div className="row">
+      {serverMode ? (
+        <p className="note">Neue Fahrer/innen lädst du in Supabase ein: Authentication → Users → «Invite user». Nach dem ersten Anmelden erscheinen sie hier.</p>
+      ) : <div className="row">
         <label className="f grow1">Name<input type="text" value={nu.name} onChange={(e) => setNu({ ...nu, name: e.target.value })} /></label>
         <label className="f">PIN<input type="text" inputMode="numeric" className="w-num" value={nu.pin} onChange={(e) => setNu({ ...nu, pin: e.target.value })} /></label>
         <button className="btn" onClick={async () => {
@@ -197,7 +200,7 @@ function MasterData() {
           toast(`${nu.name.trim()} hinzugefügt`);
           setNu({ name: '', pin: '' });
         }}>Hinzufügen</button>
-      </div>
+      </div>}
       <div className="tbl">
         <table>
           <thead><tr><th>Fahrzeug</th><th className="num">Plätze</th></tr></thead>

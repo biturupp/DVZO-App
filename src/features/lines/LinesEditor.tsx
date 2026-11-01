@@ -5,6 +5,7 @@ import { parseCoordinates, type LatLon } from '../../domain/geo';
 import type { Line, Stop } from '../../domain/types';
 import { MapView } from '../../ui/MapView';
 import { toast } from '../../ui/toast';
+import { buildSampleData } from '../../data/seed';
 
 /** Modul a: Linien und Haltestellen erfassen, per Karte oder Koordinaten. */
 export function LinesEditor() {
@@ -48,6 +49,15 @@ export function LinesEditor() {
           </button>
         ))}
         <button className="btn ghost" onClick={addLine}>+ Neue Linie</button>
+        {!lines.length && (
+          <button className="btn" onClick={async () => {
+            const s = buildSampleData();
+            await db.lines.bulkAdd(s.lines);
+            await db.trips.bulkAdd(s.trips);
+            await db.vehicles.bulkPut(s.vehicles);
+            toast('Beispiellinien mit Fahrplänen und zwei Fahrzeugen übernommen');
+          }}>Beispiellinien übernehmen</button>
+        )}
       </div>
       {line && (
         <div className="grid2">
