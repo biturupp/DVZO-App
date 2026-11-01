@@ -101,3 +101,27 @@ describe('Simulation und Erinnerung', () => {
     expect(dueReminder(items[0], line.stops, [600, 610, 630], 0, 0, items[0], 'Linie 1', 590, 3)).toBeNull();
   });
 });
+
+describe('Ankunft und Abfahrt verschieden', () => {
+  const st = line.stops;
+  // B: Ankunft 610, Abfahrt 615 (5 Min. Aufenthalt)
+  const dep = [600, 615, 630];
+  const arr = [600, 610, 630];
+  it('rechnet unterwegs mit der Ankunftszeit', () => {
+    const mid = { lat: (st[0].lat + st[1].lat) / 2, lon: (st[0].lon + st[1].lon) / 2 };
+    expect(computeLage(st, dep, mid, -1, 0, 605, arr).value).toBeCloseTo(0, 0);
+  });
+  it('wartet an der Haltestelle bis zur Abfahrt', () => {
+    const l = computeLage(st, dep, st[1], 1, 1, 611, arr);
+    expect(l.kind).toBe('wait');
+    expect(lageStatus(l)).toBe('early');
+  });
+  it('steht in der Simulation während des Aufenthalts an der Haltestelle', () => {
+    expect(simulatePosition(st, dep, 612, 0, arr)).toEqual(st[1]);
+  });
+  it('nimmt die Ankunft an der Endhaltestelle als Dienstende', () => {
+    const t: Trip = { id: 'T3', lineId: 'L1', dir: 'H', times: { a: 600, b: 615, c: 630 }, arrivals: { b: 610 } };
+    const d: Duty = { ...duty, items: [{ id: 'x', type: 'fahrt', start: null, end: null, note: '', tripId: 'T3' }] };
+    expect(resolveItems(d, [t], [line]).map((i) => [i.s, i.e])).toEqual([[600, 630]]);
+  });
+});

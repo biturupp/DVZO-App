@@ -7,7 +7,7 @@ import {
   type Lage,
 } from '../../domain/drive';
 import { distanceM, formatDistance } from '../../domain/geo';
-import { itemTitle, resolveItems, tripLabel, tripStops, tripTimes } from '../../domain/schedule';
+import { itemTitle, resolveItems, tripArrivals, tripLabel, tripStops, tripTimes } from '../../domain/schedule';
 import { hm, minSec, signedMinSec } from '../../domain/time';
 import { DUTY_TYPES, type CountRecord } from '../../domain/types';
 import { MapView } from '../../ui/MapView';
@@ -49,11 +49,12 @@ export function DriveView() {
   const active = pickActiveTrip(items, now, tripId, (tid) => occupancy(recsOf(tid)));
   const stops = active?.trip && active.line ? tripStops(active.trip, active.line) : [];
   const times = active?.trip && active.line ? tripTimes(active.trip, active.line) : [];
+  const arrivals = active?.trip && active.line ? tripArrivals(active.trip, active.line) : [];
 
-  const position = sim.mode === 'sim-auto' ? (active ? simulatePosition(stops, times, now, sim.simDelay) : null) : sim.position;
+  const position = sim.mode === 'sim-auto' ? (active ? simulatePosition(stops, times, now, sim.simDelay, arrivals) : null) : sim.position;
   const atIdx = stopInRadius(stops, position);
   const effLastIdx = Math.max(lastIdx, atIdx);
-  const lage: Lage | null = active ? computeLage(stops, times, position, atIdx, effLastIdx, now) : null;
+  const lage: Lage | null = active ? computeLage(stops, times, position, atIdx, effLastIdx, now, arrivals) : null;
 
   const saveRecord = async (idx: number, f: Form, emptied: boolean, auto = false) => {
     if (!duty || !active?.trip) return;

@@ -79,8 +79,9 @@ export interface Lage {
 
 /**
  * Fahrplanlage.
- * - An einer Haltestelle: Jetzt minus Fahrplanzeit dieser Haltestelle.
- * - Zwischen zwei Haltestellen: Sollzeit wird nach zurückgelegter Distanz interpoliert.
+ * - An einer Haltestelle: Jetzt minus Abfahrtszeit (an der Endhaltestelle: Ankunftszeit).
+ * - Zwischen zwei Haltestellen: Sollzeit wird zwischen Abfahrt und nächster Ankunft nach Distanz interpoliert.
+ * `arrivals` ist optional; ohne Angabe gilt Ankunft = Abfahrt.
  */
 export function computeLage(
   stops: Stop[],
@@ -89,12 +90,13 @@ export function computeLage(
   atIdx: number,
   lastIdx: number,
   now: number,
+  arrivals: number[] = times,
 ): Lage {
   const last = stops.length - 1;
   if (atIdx >= 0) {
     if (atIdx < last && now < times[atIdx]) return { kind: 'wait', value: now - times[atIdx], idx: atIdx };
-    if (atIdx === last && atIdx > 0 && lastIdx >= atIdx && now > times[atIdx] + 0.5) return { kind: 'end', value: null };
-    return { kind: 'at', value: now - times[atIdx], idx: atIdx };
+    if (atIdx === last && atIdx > 0 && lastIdx >= atIdx && now > arrivals[atIdx] + 0.5) return { kind: 'end', value: null };
+    return { kind: 'at', value: now - (atIdx === last ? arrivals[atIdx] : times[atIdx]), idx: atIdx };
   }
   if (lastIdx < 0) return { kind: 'pre', value: now - times[0] };
   if (lastIdx >= last) return { kind: 'end', value: null };
@@ -104,7 +106,7 @@ export function computeLage(
   const da = distanceM(pos, a);
   const db = distanceM(pos, b);
   const f = da / (da + db || 1);
-  const expected = times[lastIdx] + f * (times[lastIdx + 1] - times[lastIdx]);
+  const expected = times[lastIdx] + f * (arrivals[lastIdx + 1] - times[lastIdx]);
   return { kind: 'run', value: now - expected };
 }
 
@@ -124,15 +126,17 @@ export function lageForRecord(l: Lage | null): number | null {
 }
 
 /** Simulierte Fahrzeugposition entlang des Kurses (für Tests ohne GPS). delay in Minuten. */
-export function simulatePosition(stops: Stop[], times: number[], now: number, delay: number): LatLon | null {
+export function simulatePosition(stops: Stop[], times: number[], now: number, delay: number, arrivals: number[] = times): LatLon | null {
   if (!stops.length) return null;
   const t = now - delay;
   if (t <= times[0]) return stops[0];
-  if (t >= times[times.length - 1]) return stops[stops.length - 1];
+  if (t >= arrivals[arrivals.length - 1]) return stops[stops.length - 1];
   let k = 0;
+  // Abschnitt k: Abfahrt an k bis Abfahrt an k+1 (inkl. Aufenthalt zwischen Ankunft und Abfahrt an k+1)
   while (k < times.length - 1 && !(times[k] <= t && t < times[k + 1])) k++;
-  const dwell = 0.6;
-  const f = Math.max(0, Math.min(1, (t - times[k] - dwell) / Math.max(0.1, times[k + 1] - times[k] - dwell)));
+  if (t >= arrivals[k + 1]) return stops[k + 1];
+  const dwell = arrivals[k + 1] === times[k + 1] ? 0.6 : 0;
+  const f = Math.max(0, Math.min(1, (t - times[k] - dwell) / Math.max(0.1, arrivals[k + 1] - times[k] - dwell)));
   return {
     lat: stops[k].lat + (stops[k + 1].lat - stops[k].lat) * f,
     lon: stops[k].lon + (stops[k + 1].lon - stops[k].lon) * f,

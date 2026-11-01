@@ -28,3 +28,13 @@
 | --- | --- |
 | Disposition (`admin`) | alles lesen und bearbeiten |
 | Fahrer/in | Linien, Fahrpläne, Fahrzeuge lesen; eigene Dienste lesen; auf eigenen Diensten zählen; eigene Zählungen vom selben Tag löschen |
+
+## Spätere Änderungen an der Datenbank
+
+Neue Dateien in `migrations/` jeweils einmal im SQL Editor ausführen (neue Abfrage, Inhalt einfügen, **Run**),
+und zwar **bevor** die zugehörige Änderung gemergt wird. Bisher:
+
+| Datei | Inhalt |
+| --- | --- |
+| `20261101000000_init.sql` | Grundschema |
+| `20261101200000_ankunftszeiten.sql` | Ankunftszeiten pro Haltestelle |
