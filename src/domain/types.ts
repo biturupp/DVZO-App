@@ -20,8 +20,19 @@ export interface User {
 
 export interface Vehicle {
   id: string;
+  /** Betriebsnummer, z. B. «Saurer 1». */
   name: string;
   seats?: number;
+  /** Fahrzeughalter */
+  owner?: string;
+  brand?: string;
+  model?: string;
+  /** Kontrollschild, z. B. «ZH 12345» */
+  plate?: string;
+  /** Datum der letzten Prüfung (ISO) */
+  lastInspection?: string;
+  /** false = inaktiv, erscheint nicht mehr im Dienstplan */
+  active?: boolean;
 }
 
 export interface Stop {

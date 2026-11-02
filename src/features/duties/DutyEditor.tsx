@@ -28,7 +28,7 @@ export function DutyEditor() {
   const save = (d: Duty) => db.duties.put({ ...d, sample: false });
   const addDuty = async () => {
     const id = uid('d');
-    await db.duties.add({ id, date, driverId: (users.find((u) => u.role === 'fahrer' && u.active !== false) ?? users[0])?.id ?? '', vehicleId: vehicles[0]?.id ?? '', items: [] });
+    await db.duties.add({ id, date, driverId: (users.find((u) => u.role === 'fahrer' && u.active !== false) ?? users[0])?.id ?? '', vehicleId: (vehicles.find((v) => v.active !== false) ?? vehicles[0])?.id ?? '', items: [] });
     setEditId(id);
   };
 
@@ -68,7 +68,6 @@ export function DutyEditor() {
       {duty && <DutyForm duty={duty} onSave={save} onClose={() => setEditId(null)} />}
 
       <div className="grid2">
-        <MasterData />
         {!serverMode && <section className="panel stack" style={{ alignContent: 'start' }}>
           <h2 className="sec m0">Daten auf diesem Gerät</h2>
           <p className="note">Bis der Server angebunden ist, liegen alle Daten nur auf diesem Gerät.</p>
@@ -134,7 +133,7 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
         </label>
         <label className="f">Fahrzeug
           <select value={duty.vehicleId} onChange={(e) => onSave({ ...duty, vehicleId: e.target.value })}>
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {vehicles.filter((v) => v.active !== false || v.id === duty.vehicleId).map((v) => <option key={v.id} value={v.id}>{v.name}{v.active === false ? ' (inaktiv)' : ''}</option>)}
           </select>
         </label>
       </div>
@@ -181,33 +180,6 @@ function DutyForm({ duty, onSave, onClose }: { duty: Duty; onSave: (d: Duty) => 
         ))}
       </div>
       <button className="btn sm danger" style={{ justifySelf: 'start' }} onClick={async () => { await db.duties.delete(duty.id); onClose(); }}>Dienst löschen</button>
-    </section>
-  );
-}
-
-
-function MasterData() {
-  const vehicles = useVehicles();
-  const [nv, setNv] = useState({ name: '', seats: '' });
-  return (
-    <section className="panel stack">
-      <h2 className="sec m0">Fahrzeuge</h2>
-      <p className="note">Fahrer/innen und weitere Benutzer verwaltest du unter «Administration».</p>
-      <div className="tbl">
-        <table>
-          <thead><tr><th>Fahrzeug</th><th className="num">Plätze</th></tr></thead>
-          <tbody>{vehicles.map((v) => <tr key={v.id}><td>{v.name}</td><td className="num">{v.seats ?? '–'}</td></tr>)}</tbody>
-        </table>
-      </div>
-      <div className="row">
-        <label className="f grow1">Bezeichnung<input type="text" value={nv.name} onChange={(e) => setNv({ ...nv, name: e.target.value })} /></label>
-        <label className="f">Plätze<input type="number" className="w-num" value={nv.seats} onChange={(e) => setNv({ ...nv, seats: e.target.value })} /></label>
-        <button className="btn" onClick={async () => {
-          if (!nv.name.trim()) return toast('Bezeichnung eingeben');
-          await db.vehicles.add({ id: uid('v'), name: nv.name.trim(), seats: Number(nv.seats) || undefined });
-          setNv({ name: '', seats: '' });
-        }}>Hinzufügen</button>
-      </div>
     </section>
   );
 }
