@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { db, uid } from '../../data/db';
 import { useVehicles } from '../../data/hooks';
-import { fmtDate } from '../../domain/time';
+import { fmtDate, isoDate, olderThanMonths } from '../../domain/time';
 import type { Vehicle } from '../../domain/types';
 import { DateInput } from '../../ui/DateInput';
 import { toast } from '../../ui/toast';
@@ -10,6 +10,7 @@ const empty = (): Vehicle => ({ id: uid('v'), name: '', owner: '', brand: '', mo
 
 export function VehiclesView() {
   const vehicles = useVehicles();
+  const today = isoDate(new Date());
   const [edit, setEdit] = useState<Vehicle | null>(null);
   const [delArm, setDelArm] = useState<string | null>(null);
   const sorted = [...vehicles].sort((a, b) => Number(a.active === false) - Number(b.active === false) || a.name.localeCompare(b.name, 'de', { numeric: true }));
@@ -57,7 +58,7 @@ export function VehiclesView() {
                     <td className="mono nowrap">{v.plate || '–'}</td>
                     <td>{v.owner || '–'}</td>
                     <td className="num">{v.seats ?? '–'}</td>
-                    <td className="mono">{v.lastInspection ? fmtDate(v.lastInspection) : '–'}</td>
+                    <td className={`mono${olderThanMonths(v.lastInspection, 12, today) ? ' overdue' : ''}`} title={olderThanMonths(v.lastInspection, 12, today) ? 'Letzte Prüfung liegt mehr als 12 Monate zurück' : undefined}>{v.lastInspection ? fmtDate(v.lastInspection) : '–'}</td>
                     <td>{v.active === false ? <span className="status-off">Inaktiv</span> : <span className="status-ok">Aktiv</span>}</td>
                     <td className="nowrap">
                       <button className="btn sm" onClick={() => setEdit({ ...v })}>Bearbeiten</button>{' '}
@@ -70,7 +71,7 @@ export function VehiclesView() {
             </table>
           </div>
         ) : <p className="empty">Noch keine Fahrzeuge erfasst.</p>}
-        <p className="note m0">Inaktive Fahrzeuge erscheinen nicht mehr in der Auswahl im Dienstplan. Fahrzeuge, die schon in Diensten oder Zählungen vorkommen, lassen sich nur inaktiv setzen, nicht löschen.</p>
+        <p className="note m0">Ein rotes Prüfungsdatum liegt mehr als 12 Monate zurück. Inaktive Fahrzeuge erscheinen nicht mehr in der Auswahl im Dienstplan. Fahrzeuge, die schon in Diensten oder Zählungen vorkommen, lassen sich nur inaktiv setzen, nicht löschen.</p>
       </section>
       {edit && <VehicleForm key={edit.id} vehicle={edit} isNew={!vehicles.some((v) => v.id === edit.id)} onClose={() => setEdit(null)} />}
     </div>
