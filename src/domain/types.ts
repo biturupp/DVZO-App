@@ -1,6 +1,12 @@
 /** Kernmodell der DVZO-App. Zeiten sind Minuten ab Mitternacht, Daten ISO-Datum (YYYY-MM-DD). */
 
-export type Role = 'admin' | 'fahrer';
+export type Role = 'admin' | 'dispo' | 'fahrer';
+
+export const ROLE_LABELS: Record<Role, string> = { fahrer: 'Fahrer/in', dispo: 'Disposition', admin: 'Administration' };
+
+/** Darf Linien, Fahrpläne und Dienstpläne bearbeiten und alle Zählungen sehen. */
+export const canDispose = (u: { role: Role } | null | undefined) => u?.role === 'admin' || u?.role === 'dispo';
+export const isAdmin = (u: { role: Role } | null | undefined) => u?.role === 'admin';
 
 export interface User {
   id: string;
@@ -8,6 +14,8 @@ export interface User {
   role: Role;
   /** Nur für den lokalen Testbetrieb. Im Serverbetrieb übernimmt die Anmeldung der Server. */
   pin: string;
+  /** false = gesperrt (Konto bleibt wegen Diensten/Zählungen erhalten). */
+  active?: boolean;
 }
 
 export interface Vehicle {

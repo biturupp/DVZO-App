@@ -76,7 +76,7 @@ async function push() {
 async function pull() {
   const sb = supabase!;
   const [profiles, calendars, vehicles, lines, trips, duties, counts] = await Promise.all([
-    sb.from('profiles').select('id,name,role'),
+    sb.from('profiles').select('id,name,role,active'),
     sb.from('calendars').select('*'),
     sb.from('vehicles').select('*'),
     sb.from('lines').select('*'),

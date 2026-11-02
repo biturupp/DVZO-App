@@ -9,7 +9,7 @@ import {
 import { distanceM, formatDistance } from '../../domain/geo';
 import { itemTitle, resolveItems, tripArrivals, tripLabel, tripStops, tripTimes } from '../../domain/schedule';
 import { hm, minSec, signedMinSec } from '../../domain/time';
-import { DUTY_TYPES, type CountRecord } from '../../domain/types';
+import { canDispose, DUTY_TYPES, type CountRecord } from '../../domain/types';
 import { MapView } from '../../ui/MapView';
 import { beep } from '../../ui/sound';
 import { toast } from '../../ui/toast';
@@ -33,7 +33,7 @@ export function DriveView() {
   const now = sim.now;
 
   const [pickedDuty, setPickedDuty] = useState<string | null>(null);
-  const duty = user?.role === 'admin' ? duties.find((d) => d.id === pickedDuty) ?? duties[0] : duties.find((d) => d.driverId === user?.id);
+  const duty = canDispose(user) ? duties.find((d) => d.id === pickedDuty) ?? duties[0] : duties.find((d) => d.driverId === user?.id);
   const items = useMemo(() => (duty ? resolveItems(duty, trips, lines) : []), [duty, trips, lines]);
   const { current, next } = currentAndNext(items, now);
 
@@ -174,7 +174,7 @@ export function DriveView() {
 
   return (
     <div className="stack">
-      {user?.role === 'admin' && (
+      {canDispose(user) && (
         <label className="f" style={{ maxWidth: 320 }}>
           Dienst ansehen als
           <select value={duty.id} onChange={(e) => setPickedDuty(e.target.value)}>
