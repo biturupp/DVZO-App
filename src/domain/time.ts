@@ -81,3 +81,13 @@ function validIso(iso: string): string | null {
   const dt = new Date(y, mo - 1, d);
   return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? iso : null;
 }
+
+/** true, wenn das Datum (ISO) mehr als `months` Monate vor `today` (ISO) liegt. */
+export function olderThanMonths(iso: string | undefined, months: number, today: string): boolean {
+  if (!iso) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const limit = new Date(y, m - 1 + months, d);
+  // Monatsende: 31.03. + 1 Monat = 30.04., nicht 01.05.
+  if (limit.getDate() !== d) limit.setDate(0);
+  return isoDate(limit) < today;
+}

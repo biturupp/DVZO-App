@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDate, normalizeTime, parseDate } from './time';
+import { fmtDate, normalizeTime, olderThanMonths, parseDate } from './time';
 
 describe('Zeiteingabe 24 Stunden', () => {
   it('versteht verschiedene Schreibweisen', () => {
@@ -35,5 +35,16 @@ describe('parseDate', () => {
   });
   it('formatiert TT.MM.JJJJ', () => {
     expect(fmtDate('2027-05-01')).toBe('01.05.2027');
+  });
+});
+
+describe('olderThanMonths', () => {
+  it('erkennt abgelaufene Prüfungen nach 12 Monaten', () => {
+    expect(olderThanMonths('2025-11-02', 12, '2026-11-02')).toBe(false);
+    expect(olderThanMonths('2025-11-01', 12, '2026-11-02')).toBe(true);
+    expect(olderThanMonths('2026-03-15', 12, '2026-11-02')).toBe(false);
+    expect(olderThanMonths('2024-02-29', 12, '2025-02-28')).toBe(false);
+    expect(olderThanMonths('2024-02-29', 12, '2025-03-01')).toBe(true);
+    expect(olderThanMonths('', 12, '2026-11-02')).toBe(false);
   });
 });
