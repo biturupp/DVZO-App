@@ -15,7 +15,10 @@ export const toRow: Record<SyncTable, (o: any) => Row> = {
     id: t.id, line_id: t.lineId, dir: t.dir, times: t.times, arrivals: t.arrivals ?? {},
     number: t.number ?? '', calendar_id: t.calendarId ?? null, updated_at: new Date().toISOString(),
   }),
-  vehicles: (v: Vehicle) => ({ id: v.id, name: v.name, seats: v.seats ?? null }),
+  vehicles: (v: Vehicle) => ({
+    id: v.id, name: v.name, seats: v.seats ?? null, owner: v.owner ?? '', brand: v.brand ?? '', model: v.model ?? '', plate: v.plate ?? '',
+    last_inspection: v.lastInspection || null, active: v.active ?? true, updated_at: new Date().toISOString(),
+  }),
   duties: (d: Duty) => ({ id: d.id, date: d.date, driver_id: d.driverId, vehicle_id: d.vehicleId || null, items: d.items, updated_at: new Date().toISOString() }),
   counts: (c: CountRecord) => ({
     id: c.id, date: c.date, duty_id: c.dutyId, trip_id: c.tripId, line_id: c.lineId, stop_id: c.stopId, stop_name: c.stopName, idx: c.idx,
@@ -35,7 +38,10 @@ export const fromRow: Record<SyncTable, (r: any) => unknown> = {
     ...(r.arrivals && Object.keys(r.arrivals).length ? { arrivals: r.arrivals } : {}),
     ...(r.number ? { number: r.number } : {}), calendarId: r.calendar_id ?? null,
   }),
-  vehicles: (r): Vehicle => ({ id: r.id, name: r.name, seats: r.seats ?? undefined }),
+  vehicles: (r): Vehicle => ({
+    id: r.id, name: r.name, seats: r.seats ?? undefined, owner: r.owner ?? '', brand: r.brand ?? '', model: r.model ?? '', plate: r.plate ?? '',
+    lastInspection: r.last_inspection ?? '', active: r.active ?? true,
+  }),
   duties: (r): Duty => ({ id: r.id, date: r.date, driverId: r.driver_id, vehicleId: r.vehicle_id ?? '', items: r.items ?? [] }),
   counts: (r): CountRecord => ({
     id: r.id, date: r.date, dutyId: r.duty_id, tripId: r.trip_id, lineId: r.line_id, stopId: r.stop_id, stopName: r.stop_name, idx: r.idx,

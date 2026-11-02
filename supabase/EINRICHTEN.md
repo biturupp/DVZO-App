@@ -59,3 +59,4 @@ und zwar **bevor** die zugehörige Änderung gemergt wird. Bisher:
 | `20261101200000_ankunftszeiten.sql` | Ankunftszeiten pro Haltestelle |
 | `20261101210000_fahrtag_intervalle.sql` | Fahrtag-Intervalle, Kursnummer und Intervall pro Kurs |
 | `20261102000000_rollen_nachrichten.sql` | Rollen Fahrer/in, Disposition, Administration; Sofortnachrichten |
+| `20261102100000_fahrzeuge.sql` | Fahrzeugstammdaten (Halter, Marke, Typ, Kontrollschild, Prüfung, aktiv) |

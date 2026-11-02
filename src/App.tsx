@@ -9,15 +9,16 @@ import { LinesEditor } from './features/lines/LinesEditor';
 import { Reports } from './features/reports/Reports';
 import { TimetableEditor } from './features/timetable/TimetableEditor';
 import { AdminView } from './features/admin/AdminView';
+import { VehiclesView } from './features/vehicles/VehiclesView';
 import { MessagePopup } from './features/admin/MessagePopup';
 import { canDispose, isAdmin, ROLE_LABELS, type User } from './domain/types';
 import { hm } from './domain/time';
 import { serverMode } from './data/supabase';
 import { onSyncStatus, syncNow, type SyncStatus } from './data/sync';
 
-type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'dienst' | 'auswertung' | 'admin';
+type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'fahrzeuge' | 'dienst' | 'auswertung' | 'admin';
 
-const DISPO_TABS: [Tab, string][] = [['fahrt', 'Fahrt'], ['linien', 'Linien'], ['fahrplan', 'Fahrpläne'], ['dienst', 'Dienstplan'], ['auswertung', 'Auswertung']];
+const DISPO_TABS: [Tab, string][] = [['fahrt', 'Fahrt'], ['linien', 'Linien'], ['fahrplan', 'Fahrpläne'], ['fahrzeuge', 'Fahrzeuge'], ['dienst', 'Dienstplan'], ['auswertung', 'Auswertung']];
 const ADMIN_TABS: [Tab, string][] = [...DISPO_TABS, ['admin', 'Administration']];
 const DRIVER_TABS: [Tab, string][] = [['fahrt', 'Mein Dienst'], ['auswertung', 'Meine Zählungen']];
 
@@ -65,6 +66,7 @@ function Shell({ tabs, user, onLogout }: { tabs: [Tab, string][]; user: User; on
         {tab === 'fahrt' && <DriveView />}
         {tab === 'linien' && <LinesEditor />}
         {tab === 'fahrplan' && <TimetableEditor />}
+        {tab === 'fahrzeuge' && <VehiclesView />}
         {tab === 'dienst' && <DutyEditor />}
         {tab === 'auswertung' && <Reports />}
         {tab === 'admin' && <AdminView />}
