@@ -172,3 +172,19 @@ export function dueReminder(
   if (dep && dep.time - now > 0 && dep.time - now <= windowMin) return dep;
   return null;
 }
+
+/**
+ * Position des Fahrzeugs auf dem Linienband in Haltestellen-Einheiten (0 = Start, n−1 = Ende).
+ * An einer Haltestelle genau deren Index, unterwegs nach Distanz zwischen letzter und nächster Haltestelle interpoliert.
+ */
+export function bandProgress(stops: Stop[], pos: LatLon | null, atIdx: number, lastIdx: number): number {
+  const last = stops.length - 1;
+  if (last < 0) return 0;
+  if (atIdx >= 0) return atIdx;
+  if (lastIdx < 0) return 0;
+  if (lastIdx >= last) return last;
+  if (!pos) return lastIdx;
+  const da = distanceM(pos, stops[lastIdx]);
+  const db = distanceM(pos, stops[lastIdx + 1]);
+  return lastIdx + da / (da + db || 1);
+}

@@ -37,10 +37,20 @@ export async function lastSentByRecipient(): Promise<Map<string, Message>> {
   return out;
 }
 
-/** Neue Nachrichten live empfangen. Gibt eine Abmelde-Funktion zurück. */
-export function subscribeMessages(userId: string, onMessage: (m: Message) => void): () => void {
+/** Neueste Nachricht an diese Person seit Mitternacht (für das Dashboard). */
+export async function latestToday(userId: string): Promise<Message | null> {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase!.from('messages').select('*').eq('recipient_id', userId)
+    .gte('created_at', midnight.toISOString()).order('created_at', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message);
+  return data?.[0] ? fromRow(data[0]) : null;
+}
+
+/** Neue Nachrichten live empfangen. Gibt eine Abmelde-Funktion zurück. `tag` trennt mehrere Abos derselben Person. */
+export function subscribeMessages(userId: string, onMessage: (m: Message) => void, tag = 'popup'): () => void {
   const ch = supabase!
-    .channel(`messages-${userId}`)
+    .channel(`messages-${tag}-${userId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` }, (p) => onMessage(fromRow(p.new)))
     .subscribe();
   return () => { void supabase!.removeChannel(ch); };
