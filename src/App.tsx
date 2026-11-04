@@ -11,69 +11,128 @@ import { TimetableEditor } from './features/timetable/TimetableEditor';
 import { AdminView } from './features/admin/AdminView';
 import { VehiclesView } from './features/vehicles/VehiclesView';
 import { MessagePopup } from './features/admin/MessagePopup';
+import { Dashboard } from './features/dashboard/Dashboard';
+import { DriveProvider } from './features/drive/DriveContext';
+import { Icon, type IconName } from './ui/icons';
 import { canDispose, isAdmin, ROLE_LABELS, type User } from './domain/types';
 import { hm } from './domain/time';
 import { serverMode } from './data/supabase';
 import { onSyncStatus, syncNow, type SyncStatus } from './data/sync';
 
-type Tab = 'fahrt' | 'linien' | 'fahrplan' | 'fahrzeuge' | 'dienst' | 'auswertung' | 'admin';
+type Tab = 'dashboard' | 'fahrt' | 'linien' | 'fahrplan' | 'fahrzeuge' | 'dienst' | 'auswertung' | 'admin';
+type NavItem = { tab: Tab; label: string; icon: IconName };
 
-const DISPO_TABS: [Tab, string][] = [['fahrt', 'Fahrt'], ['linien', 'Linien'], ['fahrplan', 'Fahrpläne'], ['fahrzeuge', 'Fahrzeuge'], ['dienst', 'Dienstplan'], ['auswertung', 'Auswertung']];
-const ADMIN_TABS: [Tab, string][] = [...DISPO_TABS, ['admin', 'Administration']];
-const DRIVER_TABS: [Tab, string][] = [['fahrt', 'Mein Dienst'], ['auswertung', 'Meine Zählungen']];
+const DASH: NavItem = { tab: 'dashboard', label: 'Dashboard', icon: 'dashboard' };
+const COUNT: NavItem = { tab: 'fahrt', label: 'Frequenz', icon: 'people' };
+const DISPO_NAV: NavItem[] = [
+  DASH, COUNT,
+  { tab: 'linien', label: 'Linien', icon: 'lines' },
+  { tab: 'fahrplan', label: 'Fahrpläne', icon: 'calendar' },
+  { tab: 'fahrzeuge', label: 'Fahrzeuge', icon: 'vehicle' },
+  { tab: 'dienst', label: 'Dienstplan', icon: 'duty' },
+  { tab: 'auswertung', label: 'Auswertung', icon: 'chart' },
+];
+const ADMIN_NAV: NavItem[] = [...DISPO_NAV, { tab: 'admin', label: 'Admin', icon: 'admin' }];
+const DRIVER_NAV: NavItem[] = [DASH, COUNT, { tab: 'auswertung', label: 'Meine Zählungen', icon: 'chart' }];
+
+const TITLES: Record<Tab, string> = {
+  dashboard: 'Dashboard', fahrt: 'Frequenz erfassen', linien: 'Linien', fahrplan: 'Fahrpläne', fahrzeuge: 'Fahrzeuge',
+  dienst: 'Dienstplan', auswertung: 'Auswertung', admin: 'Administration',
+};
 
 function useHashTab(allowed: Tab[]): [Tab, (t: Tab) => void] {
-  const read = () => { const h = location.hash.slice(1) as Tab; return allowed.includes(h) ? h : 'fahrt'; };
+  const read = () => { const h = location.hash.slice(1) as Tab; return allowed.includes(h) ? h : 'dashboard'; };
   const [tab, setTab] = useState<Tab>(read);
   useEffect(() => {
     const on = () => setTab(read());
     addEventListener('hashchange', on);
     return () => removeEventListener('hashchange', on);
   });
-  return [allowed.includes(tab) ? tab : 'fahrt', (t) => { location.hash = t; setTab(t); }];
+  return [allowed.includes(tab) ? tab : 'dashboard', (t) => { location.hash = t; setTab(t); }];
 }
 
 export function App() {
   const { user, logout, mustSetPassword } = useAuth();
   if (serverMode && mustSetPassword) return <SetPassword />;
   if (!user) return serverMode ? <EmailLogin /> : <Login />;
-  const tabs = isAdmin(user) ? ADMIN_TABS : canDispose(user) ? DISPO_TABS : DRIVER_TABS;
-  return <Shell tabs={tabs} user={user} onLogout={logout} />;
+  const nav = isAdmin(user) ? ADMIN_NAV : canDispose(user) ? DISPO_NAV : DRIVER_NAV;
+  return (
+    <DriveProvider>
+      <Shell nav={nav} user={user} onLogout={logout} />
+    </DriveProvider>
+  );
 }
 
-function Shell({ tabs, user, onLogout }: { tabs: [Tab, string][]; user: User; onLogout: () => void }) {
-  const [tab, setTab] = useHashTab(tabs.map((t) => t[0]));
+function Shell({ nav, user, onLogout }: { nav: NavItem[]; user: User; onLogout: () => void }) {
+  const [tab, setTab] = useHashTab(nav.map((n) => n.tab));
   const sim = useSim();
   const [account, setAccount] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const go = (t: Tab) => { setTab(t); setMenu(false); scrollTo(0, 0); };
+  const main = nav.filter((n) => n.tab !== 'admin');
+  const admin = nav.find((n) => n.tab === 'admin');
+  const link = (n: NavItem) => (
+    <button key={n.tab} className="rail-item" aria-current={n.tab === tab ? 'page' : undefined} onClick={() => go(n.tab)}>
+      <Icon name={n.icon} size={26} />
+      <span>{n.label}</span>
+    </button>
+  );
   return (
-    <>
-      <header className="top">
-        <div className="wrap">
-          <div className="bar">
-            <div className="brand"><b>DVZO-App</b><span>Oldtimerbetrieb DVZO</span></div>
-            <span className="clock">{hm(sim.now)}</span>
+    <div className="app">
+      <nav className="rail" aria-label="Menü">
+        <img className="rail-logo" src={`${import.meta.env.BASE_URL}dvzo-logo.png`} alt="DVZO" />
+        {main.map(link)}
+        <div className="rail-end">
+          {admin && link(admin)}
+          <button className="rail-item" onClick={() => setAccount(true)} title="Konto und Passwort">
+            <Icon name="user" size={26} />
+            <span>{user.name.split(' ')[0]}</span>
+          </button>
+        </div>
+      </nav>
+      <div className="app-main">
+        {tab !== 'dashboard' && (
+          <header className="pagebar">
+            <button className="menubtn" onClick={() => setMenu(true)} aria-label="Menü öffnen"><Icon name="menu" size={26} /></button>
+            <img className="pagebar-logo" src={`${import.meta.env.BASE_URL}dvzo-logo.png`} alt="DVZO" />
+            <h1>{TITLES[tab]}</h1>
             {sim.clock.sim && <span className="chip sim">Simulation {sim.clock.speed ? `${sim.clock.speed}×` : 'pausiert'}</span>}
             {serverMode && <SyncChip />}
-            <button className="chip chipbtn" onClick={() => setAccount(true)} title="Konto und Passwort">{user.name}</button>
-            <button className="btn sm ghost" onClick={onLogout}>Abmelden</button>
-          </div>
-          <nav className="tabs" aria-label="Bereiche">
-            {tabs.map(([k, l]) => <button key={k} className={k === 'admin' ? 'right' : undefined} aria-current={k === tab ? 'page' : undefined} onClick={() => setTab(k)}>{l}</button>)}
+            <span className="clock">{hm(sim.now)}</span>
+          </header>
+        )}
+        <main className={tab === 'dashboard' ? 'main-dash' : 'main-page'}>
+          {tab === 'dashboard' && <Dashboard onCount={() => go('fahrt')} onMenu={() => setMenu(true)} syncChip={serverMode ? <SyncChip /> : null} />}
+          {tab === 'fahrt' && <DriveView />}
+          {tab === 'linien' && <LinesEditor />}
+          {tab === 'fahrplan' && <TimetableEditor />}
+          {tab === 'fahrzeuge' && <VehiclesView />}
+          {tab === 'dienst' && <DutyEditor />}
+          {tab === 'auswertung' && <Reports />}
+          {tab === 'admin' && <AdminView />}
+        </main>
+      </div>
+      {menu && (
+        <div className="overlay drawer-wrap" onClick={(e) => { if (e.target === e.currentTarget) setMenu(false); }}>
+          <nav className="drawer" aria-label="Menü">
+            <div className="drawer-head">
+              <img src={`${import.meta.env.BASE_URL}dvzo-logo.png`} alt="DVZO" />
+              <button className="btn sm ghost" onClick={() => setMenu(false)}>Schliessen</button>
+            </div>
+            {nav.map((n) => (
+              <button key={n.tab} className="drawer-item" aria-current={n.tab === tab ? 'page' : undefined} onClick={() => go(n.tab)}>
+                <Icon name={n.icon} />{n.tab === 'admin' ? 'Administration' : n.label}
+              </button>
+            ))}
+            <hr />
+            <button className="drawer-item" onClick={() => { setMenu(false); setAccount(true); }}><Icon name="user" />Mein Konto ({user.name})</button>
+            <button className="drawer-item" onClick={() => { setMenu(false); onLogout(); }}>Abmelden</button>
           </nav>
         </div>
-      </header>
-      <main className="wrap">
-        {tab === 'fahrt' && <DriveView />}
-        {tab === 'linien' && <LinesEditor />}
-        {tab === 'fahrplan' && <TimetableEditor />}
-        {tab === 'fahrzeuge' && <VehiclesView />}
-        {tab === 'dienst' && <DutyEditor />}
-        {tab === 'auswertung' && <Reports />}
-        {tab === 'admin' && <AdminView />}
-      </main>
+      )}
       {serverMode && <MessagePopup userId={user.id} />}
       {account && <AccountDialog user={user} onClose={() => setAccount(false)} />}
-    </>
+    </div>
   );
 }
 
@@ -92,6 +151,7 @@ function Login() {
     <main className="wrap">
       <div className="login">
         <div>
+          <img className="login-logo" src={`${import.meta.env.BASE_URL}dvzo-logo.png`} alt="DVZO" />
           <h1 className="title">DVZO-App</h1>
           <p className="note">Oldtimerbetrieb DVZO · Fahrgastzählung, Fahrpläne und Dienstpläne</p>
         </div>
@@ -138,6 +198,7 @@ function EmailLogin() {
     <main className="wrap">
       <div className="login">
         <div>
+          <img className="login-logo" src={`${import.meta.env.BASE_URL}dvzo-logo.png`} alt="DVZO" />
           <h1 className="title">DVZO-App</h1>
           <p className="note">Oldtimerbetrieb DVZO · Fahrgastzählung, Fahrpläne und Dienstpläne</p>
         </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeLage, dueReminder, lageForRecord, lageStatus, occupancy, pickActiveTrip, simulatePosition, stopInRadius } from './drive';
+import { bandProgress, computeLage, dueReminder, lageForRecord, lageStatus, occupancy, pickActiveTrip, simulatePosition, stopInRadius } from './drive';
 import { resolveItems, tripStops, tripTimes } from './schedule';
-import type { CountRecord, Duty, Line, Trip } from './types';
+import type { CountRecord, Duty, Line, Stop, Trip } from './types';
 
 const line: Line = {
   id: 'L1', name: 'Linie 1', route: 'A – C', color: '#000', days: 'So',
@@ -124,4 +124,14 @@ describe('Ankunft und Abfahrt verschieden', () => {
     const d: Duty = { ...duty, items: [{ id: 'x', type: 'fahrt', start: null, end: null, note: '', tripId: 'T3' }] };
     expect(resolveItems(d, [t], [line]).map((i) => [i.s, i.e])).toEqual([[600, 630]]);
   });
+});
+
+describe('bandProgress', () => {
+  const s = (id: string, lat: number): Stop => ({ id, name: id, lat, lon: 8.9, radius: 100 });
+  const stops = [s('a', 47.30), s('b', 47.31), s('c', 47.32)];
+  it('steht an der Haltestelle', () => expect(bandProgress(stops, null, 1, 1)).toBe(1));
+  it('vor der Fahrt am Start', () => expect(bandProgress(stops, { lat: 47.29, lon: 8.9 }, -1, -1)).toBe(0));
+  it('unterwegs auf halbem Weg', () => expect(bandProgress(stops, { lat: 47.305, lon: 8.9 }, -1, 0)).toBeCloseTo(0.5, 1));
+  it('nach der Endhaltestelle am Ende', () => expect(bandProgress(stops, null, -1, 2)).toBe(2));
+  it('ohne Haltestellen 0', () => expect(bandProgress([], null, -1, -1)).toBe(0));
 });

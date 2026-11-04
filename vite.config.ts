@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'dvzo-logo.png'],
       manifest: {
         name: 'DVZO-App',
         short_name: 'DVZO',
@@ -22,11 +22,11 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#eef3ef',
-        theme_color: '#1d6b50',
+        theme_color: '#314996',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg}'],
+        globPatterns: ['**/*.{js,css,html,svg,png}'],
         runtimeCaching: [
           {
             // Kartenkacheln für unterwegs zwischenspeichern (Funklöcher auf der Strecke)

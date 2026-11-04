@@ -1,106 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { db, uid } from '../../data/db';
-import { today, useCountsOn, useDutiesOn, useLines, useSettings, useTrips, useUsers, useVehicles } from '../../data/hooks';
-import {
-  computeLage, currentAndNext, dueReminder, lageForRecord, lageStatus, occupancy, pickActiveTrip, simulatePosition, stopInRadius,
-  type Lage,
-} from '../../domain/drive';
+import { db } from '../../data/db';
 import { distanceM, formatDistance } from '../../domain/geo';
-import { itemTitle, resolveItems, tripArrivals, tripLabel, tripStops, tripTimes } from '../../domain/schedule';
+import { itemTitle, tripLabel } from '../../domain/schedule';
 import { hm, minSec, signedMinSec } from '../../domain/time';
-import { canDispose, DUTY_TYPES, type CountRecord } from '../../domain/types';
+import { canDispose, DUTY_TYPES } from '../../domain/types';
 import { MapView } from '../../ui/MapView';
-import { beep } from '../../ui/sound';
 import { toast } from '../../ui/toast';
+import { useDrive, type CountForm } from './DriveContext';
+import { lageText } from './lageText';
 import { useSim } from './SimContext';
 import { SimPanel } from './SimPanel';
 
-type Form = { adultsIn: number; adultsOut: number; kidsIn: number; kidsOut: number };
-const EMPTY: Form = { adultsIn: 0, adultsOut: 0, kidsIn: 0, kidsOut: 0 };
+type Form = CountForm;
 
 export function DriveView() {
   const { user } = useAuth();
-  const date = today();
-  const duties = useDutiesOn(date);
-  const lines = useLines();
-  const trips = useTrips();
-  const users = useUsers();
-  const vehicles = useVehicles();
-  const counts = useCountsOn(date);
-  const settings = useSettings();
   const sim = useSim();
-  const now = sim.now;
-
-  const [pickedDuty, setPickedDuty] = useState<string | null>(null);
-  const duty = canDispose(user) ? duties.find((d) => d.id === pickedDuty) ?? duties[0] : duties.find((d) => d.driverId === user?.id);
-  const items = useMemo(() => (duty ? resolveItems(duty, trips, lines) : []), [duty, trips, lines]);
-  const { current, next } = currentAndNext(items, now);
-
-  // Laufzustand der aktuellen Fahrt
-  const [tripId, setTripId] = useState<string | null>(null);
-  const [lastIdx, setLastIdx] = useState(-1);
-  const [selIdx, setSelIdx] = useState<number | null>(null);
-  const [selAuto, setSelAuto] = useState(true);
-  const [form, setForm] = useState<Form>(EMPTY);
-  const reminded = useRef<string | null>(null);
-
-  const recsOf = (tid: string) => counts.filter((c) => c.tripId === tid && c.dutyId === duty?.id);
-  const active = pickActiveTrip(items, now, tripId, (tid) => occupancy(recsOf(tid)));
-  const stops = active?.trip && active.line ? tripStops(active.trip, active.line) : [];
-  const times = active?.trip && active.line ? tripTimes(active.trip, active.line) : [];
-  const arrivals = active?.trip && active.line ? tripArrivals(active.trip, active.line) : [];
-
-  const position = sim.mode === 'sim-auto' ? (active ? simulatePosition(stops, times, now, sim.simDelay, arrivals) : null) : sim.position;
-  const atIdx = stopInRadius(stops, position);
-  const effLastIdx = Math.max(lastIdx, atIdx);
-  const lage: Lage | null = active ? computeLage(stops, times, position, atIdx, effLastIdx, now, arrivals) : null;
-
-  const saveRecord = async (idx: number, f: Form, emptied: boolean, auto = false) => {
-    if (!duty || !active?.trip) return;
-    const s = stops[idx];
-    const rec: CountRecord = {
-      id: uid('c'), date, dutyId: duty.id, tripId: active.trip.id, lineId: active.trip.lineId, stopId: s.id, stopName: s.name, idx,
-      ...f, time: now, delay: lageForRecord(lage), userId: duty.driverId, vehicleId: duty.vehicleId, emptied,
-    };
-    await db.counts.add(rec);
-    setForm(EMPTY);
-    toast(emptied ? `Fahrzeug geleert: ${f.adultsOut} Erwachsene und ${f.kidsOut} Kinder ausgestiegen` : auto ? `Erfassung für ${s.name} automatisch gespeichert` : `${s.name} gespeichert`);
-  };
-  const dirty = form.adultsIn + form.adultsOut + form.kidsIn + form.kidsOut > 0;
-
-  // Fahrtwechsel
-  useEffect(() => {
-    const id = active?.tripId ?? null;
-    if (id === tripId) return;
-    setTripId(id);
-    setLastIdx(-1);
-    setSelIdx(null);
-    setSelAuto(true);
-    setForm(EMPTY);
-    // eslint-disable-next-line
-  }, [active?.tripId]);
-
-  // Ankunft an einer Haltestelle: automatisch auswählen, offene Erfassung der vorherigen sichern
-  useEffect(() => {
-    if (atIdx < 0) return;
-    if (atIdx > lastIdx) setLastIdx(atIdx);
-    if (selAuto || selIdx == null) {
-      if (dirty && selIdx != null && selIdx !== atIdx) void saveRecord(selIdx, form, false, true);
-      setSelIdx(atIdx);
-      setSelAuto(true);
-    }
-    // eslint-disable-next-line
-  }, [atIdx]);
-
-  // Erinnerung vor Abfahrt
-  const reminder = dueReminder(active, stops, times, atIdx, effLastIdx, next, next ? itemTitle(next) : '', now, settings?.remindMinutes ?? 3);
-  useEffect(() => {
-    if (reminder && reminded.current !== reminder.key) {
-      reminded.current = reminder.key;
-      beep();
-    }
-  }, [reminder?.key]);
+  const {
+    now, duties, duty, pickDuty, users, vehicles, lines, items, current, next, active, stops, times, position, atIdx, effLastIdx, lage,
+    occ, tripRecs, reminder, selIdx, selAuto, selectStop, form, setForm, saveRecord,
+  } = useDrive();
 
   if (!duty) {
     return (
@@ -111,11 +30,9 @@ export function DriveView() {
     );
   }
 
-  const occ = active?.tripId ? occupancy(recsOf(active.tripId)) : { adults: 0, kids: 0 };
-  const status = lageStatus(lage);
+  const { status, big, label, sub } = lageText(lage, stops, times, effLastIdx, now);
   const sel = selIdx != null ? stops[selIdx] : null;
   const isLast = selIdx === stops.length - 1;
-  const tripRecs = active?.tripId ? recsOf(active.tripId).sort((a, b) => a.time - b.time) : [];
 
   const step = (k: keyof Form, d: number) => {
     let v = Math.max(0, form[k] + d);
@@ -131,26 +48,6 @@ export function DriveView() {
     const last = tripRecs.at(-1);
     if (last) { await db.counts.delete(last.id); toast('Eintrag gelöscht'); }
   };
-
-  let big = '–', label = 'Keine Linienfahrt aktiv', sub = '';
-  if (lage && active) {
-    if (lage.kind === 'pre') {
-      const before = now < times[0];
-      big = before ? minSec(-lage.value!) : signedMinSec(lage.value!);
-      label = before ? 'bis Abfahrt' : 'Abfahrt verpasst';
-      sub = `Fahre zur Starthaltestelle ${stops[0].name}`;
-    } else if (lage.kind === 'wait') {
-      big = minSec(-lage.value!);
-      label = lage.idx === 0 ? 'bis Abfahrt' : 'zu früh, bitte warten';
-      sub = `Abfahrt ${stops[lage.idx!].name} um ${hm(times[lage.idx!])}`;
-    } else if (lage.kind === 'end') {
-      big = 'Ende'; label = 'Endhaltestelle erreicht'; sub = 'Fahrzeug leeren, falls noch Fahrgäste an Bord sind';
-    } else if (lage.value != null) {
-      big = signedMinSec(lage.value);
-      label = status === 'ok' ? 'im Fahrplan' : status === 'late' ? 'zu langsam · Verspätung' : 'zu schnell · zu früh';
-      sub = lage.kind === 'at' ? `an Haltestelle ${stops[lage.idx!].name}` : `unterwegs nach ${stops[Math.min(effLastIdx + 1, stops.length - 1)].name}`;
-    }
-  }
 
   let gpsText = '';
   if (sim.mode === 'gps' && sim.gpsError) gpsText = sim.gpsError;
@@ -177,7 +74,7 @@ export function DriveView() {
       {canDispose(user) && (
         <label className="f" style={{ maxWidth: 320 }}>
           Dienst ansehen als
-          <select value={duty.id} onChange={(e) => setPickedDuty(e.target.value)}>
+          <select value={duty.id} onChange={(e) => pickDuty(e.target.value)}>
             {duties.map((d) => (
               <option key={d.id} value={d.id}>{users.find((u) => u.id === d.driverId)?.name} · {vehicles.find((v) => v.id === d.vehicleId)?.name}</option>
             ))}
@@ -220,10 +117,7 @@ export function DriveView() {
                   Haltestelle
                   <select
                     value={selAuto ? '' : String(selIdx)}
-                    onChange={(e) => {
-                      if (e.target.value === '') { setSelAuto(true); setSelIdx(atIdx >= 0 ? atIdx : null); }
-                      else { setSelAuto(false); setSelIdx(Number(e.target.value)); }
-                    }}
+                    onChange={(e) => selectStop(e.target.value === '' ? null : Number(e.target.value))}
                   >
                     <option value="">automatisch (GPS)</option>
                     {stops.map((s, i) => <option key={s.id} value={i}>{i + 1}. {s.name}</option>)}
